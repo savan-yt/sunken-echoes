@@ -371,6 +371,15 @@ export class Game {
     this.callbacks.onCreatureKill(c.name);
     this.state.score += 10;
 
+    // Grant XP
+    const xpGain = 15 + Math.floor(Math.random() * 10);
+    this.state.skills.xp += xpGain;
+    if (this.state.skills.xp >= 100) {
+      this.state.skills.xp -= 100;
+      this.state.skills.level++;
+      this.state.skills.skillPoints += 2;
+    }
+
     // Drop loot
     for (const loot of c.lootTable) {
       if (Math.random() < loot.chance) {
