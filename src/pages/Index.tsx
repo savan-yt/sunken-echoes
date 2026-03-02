@@ -1,14 +1,82 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Game } from '@/game/Game';
+import { GameState, ItemDef } from '@/game/types';
+import GameCanvas from '@/components/game/GameCanvas';
+import HUD from '@/components/game/HUD';
+import Inventory from '@/components/game/Inventory';
+import TitleScreen from '@/components/game/TitleScreen';
+import { toast } from 'sonner';
 
-const Index = () => {
+export default function Index() {
+  const [screen, setScreen] = useState<'title' | 'game'>('title');
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const gameRef = useRef<Game | null>(null);
+
+  const handleStateUpdate = useCallback((state: GameState) => {
+    setGameState({ ...state });
+  }, []);
+
+  const handleItemPickup = useCallback((item: ItemDef, count: number) => {
+    toast(`+${count} ${item.icon} ${item.name}`, {
+      duration: 1500,
+      style: {
+        fontFamily: '"Press Start 2P", cursive',
+        fontSize: '9px',
+        background: 'hsl(220, 45%, 10%)',
+        border: '1px solid hsl(185, 80%, 50%, 0.3)',
+        color: 'hsl(200, 20%, 85%)',
+      },
+    });
+  }, []);
+
+  const handleCloseInventory = useCallback(() => {
+    if (gameRef.current) {
+      gameRef.current.state.showInventory = false;
+      gameRef.current.state.paused = false;
+      setGameState({ ...gameRef.current.state });
+    }
+  }, []);
+
+  const handleMoveToQuickslot = useCallback((invIdx: number, qsIdx: number) => {
+    gameRef.current?.moveInventoryToQuickslot(invIdx, qsIdx);
+  }, []);
+
+  const handleDrop = useCallback((invIdx: number) => {
+    gameRef.current?.dropInventoryItem(invIdx);
+  }, []);
+
+  // Restart on R key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'r' && gameState?.gameOver) {
+        gameRef.current?.restart();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [gameState?.gameOver]);
+
+  if (screen === 'title') {
+    return <TitleScreen onStart={() => setScreen('game')} />;
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="relative w-full h-screen overflow-hidden bg-background">
+      <GameCanvas
+        onStateUpdate={handleStateUpdate}
+        onItemPickup={handleItemPickup}
+        gameRef={gameRef}
+        running={screen === 'game'}
+      />
+      <HUD state={gameState} />
+      {gameState?.showInventory && (
+        <Inventory
+          state={gameState}
+          onClose={handleCloseInventory}
+          onMoveToQuickslot={handleMoveToQuickslot}
+          onDrop={handleDrop}
+        />
+      )}
     </div>
   );
-};
-
-export default Index;
+}
