@@ -42,9 +42,15 @@ export default function HUD({ state }: HUDProps) {
         </div>
       </div>
 
-      {/* Score */}
-      <div className="absolute top-3 right-3">
+      {/* Score & Level */}
+      <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
         <span className="text-[8px] text-primary glow-cyan">{state.score}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[6px] text-rarity-legendary">LV{state.skills.level}</span>
+          <div className="w-12 h-1 bg-secondary/60">
+            <div className="h-full bg-rarity-legendary transition-all duration-300" style={{ width: `${state.skills.xp}%` }} />
+          </div>
+        </div>
       </div>
 
       {/* Quickslot bar */}
@@ -78,6 +84,7 @@ export default function HUD({ state }: HUDProps) {
           <div>WASD move</div>
           <div>Click shoot</div>
           <div>I inventory</div>
+          <div>K skills</div>
           <div>E use item</div>
         </div>
       </div>

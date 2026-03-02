@@ -102,6 +102,35 @@ export interface Particle {
   type: 'bubble' | 'glow' | 'damage' | 'pickup';
 }
 
+export type SkillId = 'diving' | 'combat' | 'stealth' | 'crafting' | 'resilience';
+
+export interface SkillDef {
+  id: SkillId;
+  name: string;
+  icon: string;
+  description: string;
+  levels: string[];
+  color: string;
+}
+
+export const SKILLS: SkillDef[] = [
+  { id: 'diving', name: 'Deep Diving', icon: '🤿', description: 'Reduces oxygen drain rate in deeper zones', levels: ['Shallow breath', 'Seasoned diver', 'Abyss walker', 'Void breather', 'One with the deep'], color: 'hsl(var(--oxygen))' },
+  { id: 'combat', name: 'Harpoon Mastery', icon: '🔱', description: 'Increases harpoon damage and attack speed', levels: ['Rusty aim', 'Steady hand', 'Swift strike', 'Deep hunter', 'Apex predator'], color: 'hsl(var(--health))' },
+  { id: 'stealth', name: 'Shadow Swim', icon: '🥷', description: 'Reduces detection radius from corrupted creatures', levels: ['Clumsy', 'Subtle', 'Silent', 'Phantom', 'Invisible'], color: 'hsl(var(--rarity-epic))' },
+  { id: 'crafting', name: 'Salvage Expert', icon: '🔧', description: 'Increases item drop quality and crafting efficiency', levels: ['Scavenger', 'Tinkerer', 'Engineer', 'Artificer', 'Master Salvager'], color: 'hsl(var(--rarity-legendary))' },
+  { id: 'resilience', name: 'Pressure Skin', icon: '🛡️', description: 'Increases max health and reduces damage taken', levels: ['Fragile', 'Toughened', 'Hardened', 'Ironclad', 'Leviathan Hide'], color: 'hsl(var(--rarity-uncommon))' },
+];
+
+export const MAX_SKILL_LEVEL = 5;
+export const XP_PER_LEVEL = 100;
+
+export interface SkillState {
+  levels: Record<SkillId, number>;
+  skillPoints: number;
+  xp: number;
+  level: number;
+}
+
 export interface GameState {
   player: Player;
   creatures: Creature[];
@@ -120,6 +149,8 @@ export interface GameState {
   gameOver: boolean;
   paused: boolean;
   showInventory: boolean;
+  showSkillTree: boolean;
+  skills: SkillState;
 }
 
 export interface GameCallbacks {

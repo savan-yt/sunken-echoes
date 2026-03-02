@@ -67,6 +67,13 @@ export class Game {
       worldWidth: WORLD_W, worldHeight: WORLD_H,
       terrain, kelp, rocks, time: 0, score: 0,
       gameOver: false, paused: false, showInventory: false,
+      showSkillTree: false,
+      skills: {
+        levels: { diving: 0, combat: 0, stealth: 0, crafting: 0, resilience: 0 },
+        skillPoints: 2,
+        xp: 0,
+        level: 1,
+      },
     };
   }
 
@@ -145,7 +152,14 @@ export class Game {
 
       if (down && e.key.toLowerCase() === 'i') {
         this.state.showInventory = !this.state.showInventory;
+        this.state.showSkillTree = false;
         this.state.paused = this.state.showInventory;
+        this.callbacks.onStateUpdate({ ...this.state });
+      }
+      if (down && e.key.toLowerCase() === 'k') {
+        this.state.showSkillTree = !this.state.showSkillTree;
+        this.state.showInventory = false;
+        this.state.paused = this.state.showSkillTree;
         this.callbacks.onStateUpdate({ ...this.state });
       }
       if (down && e.key >= '1' && e.key <= '6') {
@@ -356,6 +370,15 @@ export class Game {
     c.deathTimer = 2;
     this.callbacks.onCreatureKill(c.name);
     this.state.score += 10;
+
+    // Grant XP
+    const xpGain = 15 + Math.floor(Math.random() * 10);
+    this.state.skills.xp += xpGain;
+    if (this.state.skills.xp >= 100) {
+      this.state.skills.xp -= 100;
+      this.state.skills.level++;
+      this.state.skills.skillPoints += 2;
+    }
 
     // Drop loot
     for (const loot of c.lootTable) {

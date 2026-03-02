@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Game } from '@/game/Game';
-import { GameState, ItemDef } from '@/game/types';
+import { GameState, ItemDef, SkillId, MAX_SKILL_LEVEL, XP_PER_LEVEL, SKILLS } from '@/game/types';
 import GameCanvas from '@/components/game/GameCanvas';
 import HUD from '@/components/game/HUD';
 import Inventory from '@/components/game/Inventory';
+import SkillTree from '@/components/game/SkillTree';
 import TitleScreen from '@/components/game/TitleScreen';
 import { toast } from 'sonner';
 
@@ -35,6 +36,34 @@ export default function Index() {
       gameRef.current.state.paused = false;
       setGameState({ ...gameRef.current.state });
     }
+  }, []);
+
+  const handleCloseSkillTree = useCallback(() => {
+    if (gameRef.current) {
+      gameRef.current.state.showSkillTree = false;
+      gameRef.current.state.paused = false;
+      setGameState({ ...gameRef.current.state });
+    }
+  }, []);
+
+  const handleUpgradeSkill = useCallback((id: SkillId) => {
+    if (!gameRef.current) return;
+    const s = gameRef.current.state.skills;
+    if (s.skillPoints <= 0 || s.levels[id] >= MAX_SKILL_LEVEL) return;
+    s.levels[id]++;
+    s.skillPoints--;
+    const skill = SKILLS.find(sk => sk.id === id)!;
+    toast(`${skill.icon} ${skill.name} upgraded!`, {
+      duration: 1500,
+      style: {
+        fontFamily: '"Press Start 2P", cursive',
+        fontSize: '9px',
+        background: 'hsl(220, 45%, 10%)',
+        border: `1px solid ${skill.color}`,
+        color: 'hsl(200, 20%, 85%)',
+      },
+    });
+    setGameState({ ...gameRef.current.state });
   }, []);
 
   const handleMoveToQuickslot = useCallback((invIdx: number, qsIdx: number) => {
@@ -75,6 +104,13 @@ export default function Index() {
           onClose={handleCloseInventory}
           onMoveToQuickslot={handleMoveToQuickslot}
           onDrop={handleDrop}
+        />
+      )}
+      {gameState?.showSkillTree && (
+        <SkillTree
+          state={gameState}
+          onClose={handleCloseSkillTree}
+          onUpgradeSkill={handleUpgradeSkill}
         />
       )}
     </div>
