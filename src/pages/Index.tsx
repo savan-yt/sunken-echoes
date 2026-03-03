@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Game } from '@/game/Game';
-import { GameState, ItemDef, SkillId, MAX_SKILL_LEVEL, XP_PER_LEVEL, SKILLS } from '@/game/types';
+import { GameState, ItemDef, SkillId, StatId, MAX_SKILL_LEVEL, SKILLS, SKILL_NODES } from '@/game/types';
 import GameCanvas from '@/components/game/GameCanvas';
 import HUD from '@/components/game/HUD';
 import Inventory from '@/components/game/Inventory';
@@ -46,20 +46,41 @@ export default function Index() {
     }
   }, []);
 
-  const handleUpgradeSkill = useCallback((id: SkillId) => {
+  const handleAllocateStat = useCallback((id: StatId) => {
     if (!gameRef.current) return;
     const s = gameRef.current.state.skills;
-    if (s.skillPoints <= 0 || s.levels[id] >= MAX_SKILL_LEVEL) return;
-    s.levels[id]++;
+    if (s.statPoints <= 0) return;
+    if ((s.stats[id] || 0) >= 20) return;
+    s.stats[id] = (s.stats[id] || 0) + 1;
+    s.statPoints--;
+    toast(`⬆️ ${id} increased!`, {
+      duration: 1200,
+      style: {
+        fontFamily: '"Press Start 2P", cursive',
+        fontSize: '9px',
+        background: 'hsl(220, 45%, 10%)',
+        border: '1px solid hsl(185, 80%, 50%, 0.3)',
+        color: 'hsl(200, 20%, 85%)',
+      },
+    });
+    setGameState({ ...gameRef.current.state });
+  }, []);
+
+  const handleUnlockSkill = useCallback((nodeId: string) => {
+    if (!gameRef.current) return;
+    const s = gameRef.current.state.skills;
+    if (s.skillPoints <= 0 || s.unlockedSkills.includes(nodeId)) return;
+    const node = SKILL_NODES.find(n => n.id === nodeId);
+    if (!node) return;
+    s.unlockedSkills.push(nodeId);
     s.skillPoints--;
-    const skill = SKILLS.find(sk => sk.id === id)!;
-    toast(`${skill.icon} ${skill.name} upgraded!`, {
+    toast(`${node.icon} ${node.name} unlocked!`, {
       duration: 1500,
       style: {
         fontFamily: '"Press Start 2P", cursive',
         fontSize: '9px',
         background: 'hsl(220, 45%, 10%)',
-        border: `1px solid ${skill.color}`,
+        border: `1px solid ${node.color}`,
         color: 'hsl(200, 20%, 85%)',
       },
     });
@@ -74,7 +95,6 @@ export default function Index() {
     gameRef.current?.dropInventoryItem(invIdx);
   }, []);
 
-  // Restart on R key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'r' && gameState?.gameOver) {
@@ -110,7 +130,8 @@ export default function Index() {
         <SkillTree
           state={gameState}
           onClose={handleCloseSkillTree}
-          onUpgradeSkill={handleUpgradeSkill}
+          onAllocateStat={handleAllocateStat}
+          onUnlockSkill={handleUnlockSkill}
         />
       )}
     </div>

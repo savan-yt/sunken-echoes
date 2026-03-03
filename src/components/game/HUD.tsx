@@ -1,4 +1,4 @@
-import { GameState, RARITY_COLORS } from '@/game/types';
+import { GameState, RARITY_COLORS, ZONE_NAMES } from '@/game/types';
 
 interface HUDProps {
   state: GameState | null;
@@ -18,7 +18,7 @@ export default function HUD({ state }: HUDProps) {
         {/* HP */}
         <div className="flex items-center gap-1.5">
           <span className="text-[8px] text-health w-6">HP</span>
-          <div className="w-24 h-2 bg-secondary/60 pixel-border">
+          <div className="w-28 h-2.5 bg-secondary/60 pixel-border">
             <div
               className="h-full transition-all duration-300"
               style={{
@@ -27,12 +27,12 @@ export default function HUD({ state }: HUDProps) {
               }}
             />
           </div>
-          <span className="text-[7px] text-foreground/70">{Math.ceil(player.hp)}</span>
+          <span className="text-[7px] text-foreground/70">{Math.ceil(player.hp)}/{Math.ceil(player.maxHp)}</span>
         </div>
         {/* Oxygen */}
         <div className="flex items-center gap-1.5">
           <span className="text-[8px] text-oxygen w-6">O₂</span>
-          <div className="w-24 h-2 bg-secondary/60 pixel-border">
+          <div className="w-28 h-2.5 bg-secondary/60 pixel-border">
             <div
               className="h-full bg-oxygen transition-all duration-300"
               style={{ width: `${oxygenPct}%`, opacity: oxygenPct < 25 ? 0.5 + Math.sin(Date.now() * 0.01) * 0.5 : 1 }}
@@ -40,17 +40,28 @@ export default function HUD({ state }: HUDProps) {
           </div>
           <span className="text-[7px] text-foreground/70">{Math.ceil(player.oxygen)}%</span>
         </div>
+        {/* Zone */}
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-[6px] text-muted-foreground">📍</span>
+          <span className="text-[6px] text-primary/70">{ZONE_NAMES[state.depthZone] || 'Unknown'}</span>
+        </div>
       </div>
 
-      {/* Score & Level */}
+      {/* Score, Level, Stats */}
       <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
         <span className="text-[8px] text-primary glow-cyan">{state.score}</span>
         <div className="flex items-center gap-1">
           <span className="text-[6px] text-rarity-legendary">LV{state.skills.level}</span>
-          <div className="w-12 h-1 bg-secondary/60">
+          <div className="w-14 h-1.5 bg-secondary/60">
             <div className="h-full bg-rarity-legendary transition-all duration-300" style={{ width: `${state.skills.xp}%` }} />
           </div>
         </div>
+        {state.skills.statPoints > 0 && (
+          <span className="text-[6px] text-rarity-legendary animate-pulse-glow">◆ {state.skills.statPoints} SP — Press K</span>
+        )}
+        {state.skills.skillPoints > 0 && (
+          <span className="text-[6px] text-rarity-epic animate-pulse-glow">★ {state.skills.skillPoints} AP</span>
+        )}
       </div>
 
       {/* Quickslot bar */}
@@ -58,7 +69,7 @@ export default function HUD({ state }: HUDProps) {
         {player.quickslots.map((slot, i) => (
           <div
             key={i}
-            className={`relative w-10 h-10 flex items-center justify-center pixel-border transition-all
+            className={`relative w-11 h-11 flex items-center justify-center pixel-border transition-all
               ${i === player.activeQuickslot ? 'border-primary shadow-[0_0_12px_hsl(var(--primary)/0.5)]' : 'border-border/50'}
             `}
             style={{ backgroundColor: 'hsl(220, 45%, 10%)' }}

@@ -67,7 +67,8 @@ export const CREATURE_TEMPLATES = {
   corrupted_fish: {
     name: 'Corrupted Fish',
     hp: 15, damage: 5, speed: 40, behavior: 'patrol' as const,
-    attackRange: 20, patrolRange: 80, width: 14, height: 8, spriteType: 'fish',
+    attackRange: 25, patrolRange: 80, width: 22, height: 14, spriteType: 'fish',
+    xpValue: 10,
     lootTable: [
       { itemId: 'mutant_flesh', chance: 0.6, minCount: 1, maxCount: 2 },
       { itemId: 'bone_shards', chance: 0.4, minCount: 1, maxCount: 3 },
@@ -76,8 +77,9 @@ export const CREATURE_TEMPLATES = {
   corrupted_eel: {
     name: 'Corrupted Eel',
     hp: 25, damage: 8, speed: 55, behavior: 'chase' as const,
-    attackRange: 18, patrolRange: 120, width: 20, height: 6, spriteType: 'eel',
+    attackRange: 22, patrolRange: 120, width: 32, height: 10, spriteType: 'eel',
     rangedAttack: 'acid',
+    xpValue: 22,
     lootTable: [
       { itemId: 'rotted_skin', chance: 0.35, minCount: 1, maxCount: 1 },
       { itemId: 'mutant_flesh', chance: 0.5, minCount: 1, maxCount: 2 },
@@ -87,8 +89,9 @@ export const CREATURE_TEMPLATES = {
   jelly_drifter: {
     name: 'Jelly Drifter',
     hp: 10, damage: 12, speed: 20, behavior: 'patrol' as const,
-    attackRange: 25, patrolRange: 60, width: 12, height: 14, spriteType: 'jelly',
+    attackRange: 30, patrolRange: 60, width: 18, height: 22, spriteType: 'jelly',
     rangedAttack: 'shock',
+    xpValue: 15,
     lootTable: [
       { itemId: 'bio_cell', chance: 0.15, minCount: 1, maxCount: 1 },
       { itemId: 'kelp_fiber', chance: 0.5, minCount: 1, maxCount: 2 },
@@ -98,12 +101,25 @@ export const CREATURE_TEMPLATES = {
   abyssal_crab: {
     name: 'Abyssal Crab',
     hp: 40, damage: 15, speed: 25, behavior: 'ambush' as const,
-    attackRange: 15, patrolRange: 40, width: 16, height: 10, spriteType: 'crab',
+    attackRange: 20, patrolRange: 40, width: 24, height: 16, spriteType: 'crab',
+    xpValue: 35,
     lootTable: [
       { itemId: 'scrap_metal', chance: 0.4, minCount: 1, maxCount: 2 },
       { itemId: 'mutant_teeth', chance: 0.25, minCount: 1, maxCount: 2 },
       { itemId: 'deep_crystal', chance: 0.08, minCount: 1, maxCount: 1 },
       { itemId: 'void_essence', chance: 0.03, minCount: 1, maxCount: 1 },
+    ] as LootEntry[],
+  },
+  corrupted_shark: {
+    name: 'Rotjaw',
+    hp: 80, damage: 20, speed: 60, behavior: 'chase' as const,
+    attackRange: 28, patrolRange: 150, width: 40, height: 20, spriteType: 'shark',
+    xpValue: 50,
+    lootTable: [
+      { itemId: 'mutant_teeth', chance: 0.6, minCount: 2, maxCount: 4 },
+      { itemId: 'mutant_flesh', chance: 0.8, minCount: 2, maxCount: 3 },
+      { itemId: 'toxic_gland', chance: 0.2, minCount: 1, maxCount: 1 },
+      { itemId: 'corrupted_heart', chance: 0.02, minCount: 1, maxCount: 1 },
     ] as LootEntry[],
   },
 };
