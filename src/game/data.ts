@@ -61,8 +61,32 @@ export const ITEMS: Record<string, ItemDef> = {
     id: 'antitoxin', name: 'Antitoxin Vial', description: 'Cures poison and restores health.',
     rarity: 'uncommon', stackable: true, maxStack: 5, icon: '🧪', category: 'consumable',
   },
+  memory_fragment_1: {
+    id: 'memory_fragment_1', name: 'Memory Fragment: The Breach', description: 'A data crystal containing fragmented research logs.',
+    rarity: 'legendary', stackable: false, maxStack: 1, icon: '🧠', category: 'material',
+  },
 };
 
+export const BOSS_TEMPLATES = {
+  rotjaw: {
+    name: 'Rotjaw, The Corrupted',
+    hp: 300, damage: 25, speed: 70, behavior: 'chase' as const,
+    attackRange: 35, patrolRange: 200, width: 52, height: 28, spriteType: 'rotjaw',
+    xpValue: 200,
+    isBoss: true,
+    memoryFragment: {
+      title: 'Memory Fragment: The Breach',
+      text: 'Day 47 — The containment field collapsed at 03:00. Something came through from the deep trench... not a creature we catalogued. It moved wrong. The water around it turned black. Dr. Vasquez screamed that it was "learning" before the lights went out. When power returned, half the lab was flooded with corruption. Vasquez was gone. Only her badge remained, fused into the wall.',
+    },
+    lootTable: [
+      { itemId: 'mutant_teeth', chance: 1.0, minCount: 4, maxCount: 6 },
+      { itemId: 'corrupted_heart', chance: 0.5, minCount: 1, maxCount: 1 },
+      { itemId: 'void_essence', chance: 0.4, minCount: 1, maxCount: 2 },
+      { itemId: 'deep_crystal', chance: 0.6, minCount: 2, maxCount: 3 },
+      { itemId: 'toxic_gland', chance: 0.8, minCount: 2, maxCount: 3 },
+    ] as LootEntry[],
+  },
+};
 export const CREATURE_TEMPLATES = {
   corrupted_fish: {
     name: 'Corrupted Fish',

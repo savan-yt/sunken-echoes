@@ -1,8 +1,8 @@
 import {
   GameState, Player, Creature, Projectile, DroppedItem, AirBubble, Particle,
-  Vec2, GameCallbacks, RARITY_COLORS, ItemDef,
+  Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment,
 } from './types';
-import { ITEMS, CREATURE_TEMPLATES } from './data';
+import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES } from './data';
 
 // Upgraded resolution: 52px-based viewport
 const GAME_W = 780;
@@ -73,6 +73,14 @@ export class Game {
       gameOver: false, paused: false, showInventory: false,
       showSkillTree: false,
       depthZone: 0,
+      boss: {
+        active: false, phase: 1, creatureId: '',
+        chargeTimer: 0, chargeDir: { x: 0, y: 0 }, isCharging: false,
+        chargeCooldown: 3, comboCount: 0, comboCooldown: 2,
+        phaseTransition: 0, roarTimer: 0, defeated: false,
+      },
+      memoryFragments: [],
+      memoryCollected: null,
       skills: {
         levels: { diving: 0, combat: 0, stealth: 0, crafting: 0, resilience: 0 },
         skillPoints: 2,
@@ -156,6 +164,41 @@ export class Game {
         xpValue: tmpl.xpValue,
       });
     }
+
+    // Spawn Rotjaw boss at x=1800 (end of zone 1)
+    const bossX = 1800;
+    const bossTx = terrain[Math.floor(bossX)];
+    const bossY = bossTx - 80;
+    const bossTmpl = BOSS_TEMPLATES.rotjaw;
+    const bossId = 'boss_rotjaw';
+    creatures.push({
+      id: bossId,
+      name: bossTmpl.name,
+      hp: bossTmpl.hp,
+      maxHp: bossTmpl.hp,
+      damage: bossTmpl.damage,
+      speed: bossTmpl.speed,
+      behavior: bossTmpl.behavior,
+      attackRange: bossTmpl.attackRange,
+      patrolRange: bossTmpl.patrolRange,
+      width: bossTmpl.width,
+      height: bossTmpl.height,
+      spriteType: bossTmpl.spriteType,
+      xpValue: bossTmpl.xpValue,
+      lootTable: bossTmpl.lootTable,
+      pos: { x: bossX, y: bossY },
+      vel: { x: 0, y: 0 },
+      facing: -1,
+      state: 'patrol',
+      attackCooldown: 0,
+      patrolOrigin: { x: bossX, y: bossY },
+      deathTimer: 0,
+      rangedCooldown: 0,
+      animFrame: 0,
+      animTimer: 0,
+      corruptionPulse: 0,
+    });
+
     return creatures;
   }
 
@@ -242,7 +285,9 @@ export class Game {
     this.updatePlayer(dt);
     this.updateProjectiles(dt);
     this.updateCreatures(dt);
+    this.updateBoss(dt);
     this.updateDroppedItems(dt);
+    this.updateMemoryFragments(dt);
     this.updateAirBubbles(dt);
     this.updateParticles(dt);
     this.updateCamera();
@@ -426,6 +471,41 @@ export class Game {
       this.state.skills.statPoints += 3;
     }
 
+    // Boss death — drop memory fragment
+    if (c.id === 'boss_rotjaw') {
+      this.state.boss.defeated = true;
+      this.state.boss.active = false;
+      c.deathTimer = 4; // longer death for boss
+      const tmpl = BOSS_TEMPLATES.rotjaw;
+      this.state.memoryFragments.push({
+        pos: { x: c.pos.x + c.width / 2, y: c.pos.y },
+        vel: { x: 0, y: -15 },
+        lifetime: 60,
+        bobOffset: 0,
+        collected: false,
+        collectTimer: 0,
+        title: tmpl.memoryFragment.title,
+        text: tmpl.memoryFragment.text,
+      });
+      // Massive boss death explosion
+      for (let i = 0; i < 30; i++) {
+        this.state.particles.push({
+          pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 120, y: (Math.random() - 0.5) * 120 },
+          lifetime: 2, maxLifetime: 2, size: 3 + Math.random() * 4,
+          color: Math.random() > 0.5 ? '#ff2244' : '#aa22ff', type: 'damage',
+        });
+      }
+      for (let i = 0; i < 20; i++) {
+        this.state.particles.push({
+          pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+          lifetime: 3, maxLifetime: 3, size: 2 + Math.random() * 3,
+          color: '#cc88ff', type: 'memory',
+        });
+      }
+    }
+
     // Drop loot
     for (const loot of c.lootTable) {
       if (Math.random() < loot.chance) {
@@ -442,7 +522,7 @@ export class Game {
       }
     }
 
-    // Death particles - more elaborate
+    // Death particles
     for (let i = 0; i < 12; i++) {
       this.state.particles.push({
         pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
@@ -451,7 +531,6 @@ export class Game {
         color: '#ff4466', type: 'damage',
       });
     }
-    // Corruption burst
     for (let i = 0; i < 6; i++) {
       this.state.particles.push({
         pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
@@ -460,6 +539,190 @@ export class Game {
         color: '#aa22ff', type: 'corruption',
       });
     }
+  }
+
+  updateBoss(dt: number) {
+    const boss = this.state.boss;
+    if (boss.defeated) return;
+
+    const bossCreature = this.state.creatures.find(c => c.id === 'boss_rotjaw');
+    if (!bossCreature || bossCreature.state === 'dead') return;
+
+    const p = this.state.player;
+    const dx = p.pos.x - bossCreature.pos.x;
+    const dy = p.pos.y - bossCreature.pos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Activate boss when player is near
+    if (!boss.active && dist < 250) {
+      boss.active = true;
+      boss.creatureId = bossCreature.id;
+      bossCreature.state = 'chase';
+    }
+
+    if (!boss.active) return;
+
+    // Determine phase based on HP
+    const hpPct = bossCreature.hp / bossCreature.maxHp;
+    const newPhase = hpPct > 0.6 ? 1 : hpPct > 0.3 ? 2 : 3;
+    if (newPhase !== boss.phase) {
+      boss.phase = newPhase as 1 | 2 | 3;
+      boss.phaseTransition = 1.5;
+      // Phase transition roar — particles burst
+      for (let i = 0; i < 15; i++) {
+        this.state.particles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 100, y: (Math.random() - 0.5) * 100 },
+          lifetime: 1.5, maxLifetime: 1.5, size: 3 + Math.random() * 3,
+          color: newPhase === 3 ? '#ff2222' : '#ff6644', type: 'boss_charge',
+        });
+      }
+    }
+
+    if (boss.phaseTransition > 0) {
+      boss.phaseTransition -= dt;
+      return; // brief invulnerability during transition
+    }
+
+    boss.chargeCooldown -= dt;
+    boss.comboCooldown -= dt;
+    boss.roarTimer -= dt;
+
+    // Phase-specific boss speed multiplier
+    const speedMult = boss.phase === 3 ? 1.5 : boss.phase === 2 ? 1.2 : 1;
+    bossCreature.speed = 70 * speedMult;
+
+    // CHARGE ATTACK
+    if (boss.isCharging) {
+      boss.chargeTimer -= dt;
+      bossCreature.vel.x = boss.chargeDir.x * 180 * speedMult;
+      bossCreature.vel.y = boss.chargeDir.y * 180 * speedMult;
+
+      // Charge trail particles
+      if (Math.random() < 0.5) {
+        this.state.particles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: -boss.chargeDir.x * 30 + (Math.random() - 0.5) * 20, y: -boss.chargeDir.y * 30 + (Math.random() - 0.5) * 20 },
+          lifetime: 0.6, maxLifetime: 0.6, size: 3,
+          color: '#ff4422', type: 'boss_charge',
+        });
+      }
+
+      // Check hit during charge
+      if (dist < 40 && p.invincible <= 0) {
+        const chargeDmg = Math.floor(bossCreature.damage * 1.5);
+        const defense = this.getStatBonus('defense');
+        p.hp -= Math.max(1, chargeDmg - defense);
+        p.invincible = 0.8;
+        p.vel.x += boss.chargeDir.x * 150;
+        p.vel.y += boss.chargeDir.y * 80;
+        this.spawnDamageParticles(p.pos.x, p.pos.y, false);
+      }
+
+      if (boss.chargeTimer <= 0) {
+        boss.isCharging = false;
+        boss.chargeCooldown = boss.phase === 3 ? 2 : boss.phase === 2 ? 3 : 4;
+      }
+      return;
+    }
+
+    // Initiate charge attack
+    if (boss.chargeCooldown <= 0 && dist < 300 && dist > 60) {
+      const nd = dist || 1;
+      boss.chargeDir = { x: dx / nd, y: dy / nd };
+      boss.isCharging = true;
+      boss.chargeTimer = 0.6;
+      boss.chargeCooldown = 5;
+      // Charge windup particles
+      for (let i = 0; i < 8; i++) {
+        this.state.particles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 40, y: (Math.random() - 0.5) * 40 },
+          lifetime: 0.4, maxLifetime: 0.4, size: 2,
+          color: '#ffaa22', type: 'boss_charge',
+        });
+      }
+      return;
+    }
+
+    // BITE COMBO (Phase 2+)
+    if (boss.phase >= 2 && boss.comboCooldown <= 0 && dist < bossCreature.attackRange * 1.5) {
+      const comboHits = boss.phase === 3 ? 3 : 2;
+      for (let hit = 0; hit < comboHits; hit++) {
+        setTimeout(() => {
+          if (bossCreature.state === 'dead') return;
+          const cdx = p.pos.x - bossCreature.pos.x;
+          const cdy = p.pos.y - bossCreature.pos.y;
+          const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+          if (cdist < bossCreature.attackRange * 2 && p.invincible <= 0) {
+            const defense = this.getStatBonus('defense');
+            const dmg = Math.max(1, Math.floor(bossCreature.damage * 0.8) - defense);
+            p.hp -= dmg;
+            p.invincible = 0.3;
+            this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
+            if (p.hp <= 0) {
+              this.state.gameOver = true;
+              this.callbacks.onPlayerDeath();
+            }
+          }
+        }, hit * 300);
+      }
+      boss.comboCooldown = boss.phase === 3 ? 2.5 : 4;
+      boss.comboCount++;
+    }
+
+    // Phase 3: fire projectiles periodically
+    if (boss.phase === 3 && bossCreature.rangedCooldown <= 0 && dist < 250) {
+      const nd = dist || 1;
+      // Spread shot — 3 projectiles
+      for (let i = -1; i <= 1; i++) {
+        const angle = Math.atan2(dy, dx) + i * 0.25;
+        this.state.projectiles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: Math.cos(angle) * 120, y: Math.sin(angle) * 120 },
+          width: 8, height: 8, damage: Math.floor(bossCreature.damage * 0.5),
+          lifetime: 2, fromPlayer: false, type: 'acid',
+        });
+      }
+      bossCreature.rangedCooldown = 2;
+    }
+  }
+
+  updateMemoryFragments(dt: number) {
+    const p = this.state.player;
+    this.state.memoryFragments = this.state.memoryFragments.filter(mf => {
+      if (mf.collected) {
+        mf.collectTimer -= dt;
+        return mf.collectTimer > 0;
+      }
+
+      mf.vel.y *= 0.98;
+      mf.pos.y += mf.vel.y * dt;
+      mf.lifetime -= dt;
+      mf.bobOffset += dt;
+
+      // Pickup check
+      const dx = p.pos.x + p.width / 2 - mf.pos.x;
+      const dy = p.pos.y + p.height / 2 - mf.pos.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 30) {
+        mf.collected = true;
+        mf.collectTimer = 0.5;
+        this.state.memoryCollected = { title: mf.title, text: mf.text };
+        this.callbacks.onMemoryFragment(mf.title, mf.text);
+        // Collection particles
+        for (let i = 0; i < 20; i++) {
+          this.state.particles.push({
+            pos: { ...mf.pos },
+            vel: { x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60 },
+            lifetime: 1.5, maxLifetime: 1.5, size: 2 + Math.random() * 2,
+            color: Math.random() > 0.5 ? '#cc88ff' : '#ffffff', type: 'memory',
+          });
+        }
+        return true;
+      }
+
+      return mf.lifetime > 0;
+    });
   }
 
   updateCreatures(dt: number) {
@@ -476,6 +739,8 @@ export class Game {
       if (c.state === 'dead') {
         c.deathTimer -= dt;
         if (c.deathTimer <= 0) {
+          // Boss doesn't respawn
+          if (c.id === 'boss_rotjaw') continue;
           const x = p.pos.x + (Math.random() > 0.5 ? 1 : -1) * (500 + Math.random() * 400);
           const clampedX = Math.max(50, Math.min(WORLD_W - 50, x));
           const tx = Math.floor(clampedX);
@@ -757,7 +1022,9 @@ export class Game {
     this.renderRocks(ctx, cam);
     this.renderAirBubbles(ctx, cam);
     this.renderDroppedItems(ctx, cam);
+    this.renderMemoryFragments(ctx, cam);
     this.renderCreatures(ctx, cam);
+    this.renderBossHPBar(ctx);
     this.renderPlayer(ctx, cam);
     this.renderProjectiles(ctx, cam);
     this.renderParticles(ctx, cam);
@@ -1268,7 +1535,186 @@ export class Game {
         ctx.fillRect(w - 18, h * 0.1 + bob, 4, 5);
         break;
       }
+
+      case 'rotjaw': {
+        // ROTJAW BOSS — massive corrupted shark with split jaw
+        const boss = this.state.boss;
+        const phaseColor = boss.phase === 3 ? '#cc2222' : boss.phase === 2 ? '#aa4433' : '#556070';
+        const phaseGlow = boss.phase === 3 ? 0.8 : boss.phase === 2 ? 0.5 : 0.3;
+
+        // Main body — larger and more menacing
+        ctx.fillStyle = phaseColor;
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Armored plates
+        ctx.fillStyle = '#333840';
+        ctx.fillRect(-w + 2, -h + 2 + bob, w * 2 - 4, 4);
+        ctx.fillRect(-w + 4, -h + 8 + bob, w * 2 - 8, 3);
+        // Lighter underbelly
+        ctx.fillStyle = '#667580';
+        ctx.fillRect(-w + 3, h * 0.3 + bob, w * 2 - 6, h * 0.7 - 3);
+
+        // Massive dorsal fin with black coral fusion
+        ctx.fillStyle = '#222228';
+        ctx.fillRect(-5, -h - 10 + bob, 12, 12);
+        ctx.fillStyle = '#111118';
+        ctx.fillRect(-3, -h - 12 + bob, 8, 5);
+        // Coral growths on dorsal
+        ctx.fillStyle = '#1a1a22';
+        ctx.fillRect(5, -h - 8 + bob, 4, 3);
+        ctx.fillRect(-7, -h - 6 + bob, 3, 4);
+
+        // Tail with power
+        const tailSwing = Math.sin(this.state.time * 5) * 4;
+        ctx.fillStyle = '#445060';
+        ctx.fillRect(-w - 14, -h + 3 + bob + tailSwing, 16, h * 2 - 6);
+        ctx.fillRect(-w - 20, -h + bob + tailSwing, 8, 5);
+        ctx.fillRect(-w - 20, h - 5 + bob + tailSwing, 8, 5);
+
+        // SPLIT JAW — signature feature
+        const jawOpen = boss.active ? 3 + Math.sin(this.state.time * 4) * 2 : 1;
+        // Upper jaw
+        ctx.fillStyle = '#443038';
+        ctx.fillRect(w - 10, -h + 2 + bob - jawOpen, 14, h - 2);
+        // Lower jaw
+        ctx.fillRect(w - 10, h * 0.1 + bob + jawOpen, 14, h - 2);
+        // Teeth — upper
+        ctx.fillStyle = '#eeddcc';
+        for (let i = 0; i < 6; i++) {
+          ctx.fillRect(w - 8 + i * 3, h * 0.1 + bob - jawOpen - 1, 1, 4);
+        }
+        // Teeth — lower
+        for (let i = 0; i < 6; i++) {
+          ctx.fillRect(w - 8 + i * 3, h * 0.1 + bob + jawOpen - 2, 1, 4);
+        }
+        // Dripping from jaw
+        if (frame % 3 === 0) {
+          ctx.fillStyle = `rgba(255, 60, 30, 0.6)`;
+          ctx.fillRect(w - 4, h * 0.1 + bob + jawOpen + h - 2, 2, 4 + Math.random() * 3);
+        }
+
+        // Corruption veins — glowing
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow * phaseGlow})`;
+        ctx.fillRect(-w + 5, -h + 5 + bob, 2, h * 1.5);
+        ctx.fillRect(-w + 14, -h + 3 + bob, 2, h * 1.8);
+        ctx.fillRect(w - 20, -h + 7 + bob, 2, h * 1.2);
+        ctx.fillRect(-w + 8, h * 0.2 + bob, w, 1);
+
+        // Torn skin revealing glowing muscle
+        ctx.fillStyle = `rgba(255, 100, 80, ${corruptGlow * 0.6})`;
+        ctx.fillRect(-w + 10, -h + 10 + bob, 8, 4);
+        ctx.fillRect(w - 25, h * 0.15 + bob, 6, 6);
+
+        // Glowing red eyes — INTENSE
+        ctx.fillStyle = `rgba(255, 20, 20, ${corruptGlow})`;
+        ctx.fillRect(w - 8, -h + 4 + bob, 5, 5);
+        // Eye glow halo
+        ctx.fillStyle = `rgba(255, 20, 20, ${corruptGlow * 0.3})`;
+        ctx.fillRect(w - 12, -h + bob, 13, 13);
+
+        // Phase 2+: corruption spreading visuals
+        if (boss.phase >= 2) {
+          ctx.fillStyle = `rgba(180, 30, 30, ${0.2 + Math.sin(this.state.time * 3) * 0.1})`;
+          ctx.fillRect(-w - 3, -h - 3 + bob, w * 2 + 6, h * 2 + 6);
+        }
+        // Phase 3: rage aura
+        if (boss.phase === 3) {
+          ctx.fillStyle = `rgba(255, 0, 0, ${0.1 + Math.sin(this.state.time * 6) * 0.05})`;
+          ctx.fillRect(-w - 8, -h - 8 + bob, w * 2 + 16, h * 2 + 16);
+        }
+
+        // Charging visual
+        if (boss.isCharging) {
+          ctx.fillStyle = `rgba(255, 150, 50, ${0.4 + Math.sin(this.state.time * 15) * 0.2})`;
+          ctx.fillRect(-w - 5, -h - 5 + bob, w * 2 + 10, h * 2 + 10);
+        }
+        break;
+      }
     }
+  }
+
+  renderMemoryFragments(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    for (const mf of this.state.memoryFragments) {
+      if (mf.collected) continue;
+      const sx = mf.pos.x - cam.x;
+      const sy = mf.pos.y - cam.y + Math.sin(this.state.time * 2 + mf.bobOffset) * 5;
+      if (sx < -30 || sx > GAME_W + 30) continue;
+
+      // Outer pulsing glow
+      const pulse = 0.3 + Math.sin(this.state.time * 3) * 0.15;
+      ctx.fillStyle = `rgba(180, 120, 255, ${pulse * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Mid glow
+      ctx.fillStyle = `rgba(200, 150, 255, ${pulse * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Core crystal shape
+      ctx.fillStyle = `rgba(220, 180, 255, ${0.8 + Math.sin(this.state.time * 4) * 0.2})`;
+      ctx.fillRect(sx - 4, sy - 6, 8, 12);
+      ctx.fillRect(sx - 6, sy - 4, 12, 8);
+
+      // Inner bright core
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+
+      // Orbiting sparkles
+      for (let i = 0; i < 4; i++) {
+        const angle = this.state.time * 2 + i * Math.PI / 2;
+        const orbitR = 15 + Math.sin(this.state.time * 3 + i) * 3;
+        const ox = sx + Math.cos(angle) * orbitR;
+        const oy = sy + Math.sin(angle) * orbitR;
+        ctx.fillStyle = `rgba(200, 160, 255, ${0.5 + Math.sin(this.state.time * 5 + i) * 0.3})`;
+        ctx.fillRect(ox - 1, oy - 1, 2, 2);
+      }
+
+      // "MEMORY" label
+      ctx.fillStyle = `rgba(200, 160, 255, ${0.6 + Math.sin(this.state.time * 2) * 0.2})`;
+      ctx.font = '6px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('MEMORY', sx, sy - 18);
+    }
+  }
+
+  renderBossHPBar(ctx: CanvasRenderingContext2D) {
+    const boss = this.state.boss;
+    if (!boss.active || boss.defeated) return;
+    const bossCreature = this.state.creatures.find(c => c.id === 'boss_rotjaw');
+    if (!bossCreature || bossCreature.state === 'dead') return;
+
+    const barW = 300;
+    const barH = 8;
+    const bx = (GAME_W - barW) / 2;
+    const by = 12;
+    const hpPct = bossCreature.hp / bossCreature.maxHp;
+
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
+
+    // HP fill with phase color
+    const phaseColors = ['#cc4444', '#ff6622', '#ff2222'];
+    ctx.fillStyle = phaseColors[boss.phase - 1];
+    ctx.fillRect(bx, by, barW * hpPct, barH);
+
+    // Phase markers
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(bx + barW * 0.6, by, 1, barH);
+    ctx.fillRect(bx + barW * 0.3, by, 1, barH);
+
+    // Boss name
+    ctx.fillStyle = '#ff8866';
+    ctx.font = '7px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`⚠ ROTJAW — Phase ${boss.phase} ⚠`, GAME_W / 2, by - 3);
+
+    // HP text
+    ctx.fillStyle = '#ffccaa';
+    ctx.font = '5px monospace';
+    ctx.fillText(`${Math.ceil(bossCreature.hp)} / ${bossCreature.maxHp}`, GAME_W / 2, by + barH + 8);
   }
 
   renderPlayer(ctx: CanvasRenderingContext2D, cam: Vec2) {
@@ -1486,6 +1932,16 @@ export class Game {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
         ctx.globalAlpha = alpha * 0.2;
         ctx.fillRect(sx - p.size, sy - p.size, p.size * 2, p.size * 2);
+      } else if (p.type === 'memory') {
+        // Sparkling memory particles
+        ctx.fillStyle = p.color;
+        ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.fillRect(sx - p.size, sy - p.size, p.size * 2, p.size * 2);
+      } else if (p.type === 'boss_charge') {
+        ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.fillRect(sx - p.size * 1.5, sy - p.size * 1.5, p.size * 3, p.size * 3);
       } else {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
       }
