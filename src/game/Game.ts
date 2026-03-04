@@ -1630,6 +1630,91 @@ export class Game {
     }
   }
 
+  renderMemoryFragments(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    for (const mf of this.state.memoryFragments) {
+      if (mf.collected) continue;
+      const sx = mf.pos.x - cam.x;
+      const sy = mf.pos.y - cam.y + Math.sin(this.state.time * 2 + mf.bobOffset) * 5;
+      if (sx < -30 || sx > GAME_W + 30) continue;
+
+      // Outer pulsing glow
+      const pulse = 0.3 + Math.sin(this.state.time * 3) * 0.15;
+      ctx.fillStyle = `rgba(180, 120, 255, ${pulse * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Mid glow
+      ctx.fillStyle = `rgba(200, 150, 255, ${pulse * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Core crystal shape
+      ctx.fillStyle = `rgba(220, 180, 255, ${0.8 + Math.sin(this.state.time * 4) * 0.2})`;
+      ctx.fillRect(sx - 4, sy - 6, 8, 12);
+      ctx.fillRect(sx - 6, sy - 4, 12, 8);
+
+      // Inner bright core
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+
+      // Orbiting sparkles
+      for (let i = 0; i < 4; i++) {
+        const angle = this.state.time * 2 + i * Math.PI / 2;
+        const orbitR = 15 + Math.sin(this.state.time * 3 + i) * 3;
+        const ox = sx + Math.cos(angle) * orbitR;
+        const oy = sy + Math.sin(angle) * orbitR;
+        ctx.fillStyle = `rgba(200, 160, 255, ${0.5 + Math.sin(this.state.time * 5 + i) * 0.3})`;
+        ctx.fillRect(ox - 1, oy - 1, 2, 2);
+      }
+
+      // "MEMORY" label
+      ctx.fillStyle = `rgba(200, 160, 255, ${0.6 + Math.sin(this.state.time * 2) * 0.2})`;
+      ctx.font = '6px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('MEMORY', sx, sy - 18);
+    }
+  }
+
+  renderBossHPBar(ctx: CanvasRenderingContext2D) {
+    const boss = this.state.boss;
+    if (!boss.active || boss.defeated) return;
+    const bossCreature = this.state.creatures.find(c => c.id === 'boss_rotjaw');
+    if (!bossCreature || bossCreature.state === 'dead') return;
+
+    const barW = 300;
+    const barH = 8;
+    const bx = (GAME_W - barW) / 2;
+    const by = 12;
+    const hpPct = bossCreature.hp / bossCreature.maxHp;
+
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
+
+    // HP fill with phase color
+    const phaseColors = ['#cc4444', '#ff6622', '#ff2222'];
+    ctx.fillStyle = phaseColors[boss.phase - 1];
+    ctx.fillRect(bx, by, barW * hpPct, barH);
+
+    // Phase markers
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(bx + barW * 0.6, by, 1, barH);
+    ctx.fillRect(bx + barW * 0.3, by, 1, barH);
+
+    // Boss name
+    ctx.fillStyle = '#ff8866';
+    ctx.font = '7px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`⚠ ROTJAW — Phase ${boss.phase} ⚠`, GAME_W / 2, by - 3);
+
+    // HP text
+    ctx.fillStyle = '#ffccaa';
+    ctx.font = '5px monospace';
+    ctx.fillText(`${Math.ceil(bossCreature.hp)} / ${bossCreature.maxHp}`, GAME_W / 2, by + barH + 8);
+  }
+
   renderPlayer(ctx: CanvasRenderingContext2D, cam: Vec2) {
     const p = this.state.player;
     const sx = p.pos.x - cam.x;
