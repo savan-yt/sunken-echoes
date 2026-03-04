@@ -164,6 +164,41 @@ export class Game {
         xpValue: tmpl.xpValue,
       });
     }
+
+    // Spawn Rotjaw boss at x=1800 (end of zone 1)
+    const bossX = 1800;
+    const bossTx = terrain[Math.floor(bossX)];
+    const bossY = bossTx - 80;
+    const bossTmpl = BOSS_TEMPLATES.rotjaw;
+    const bossId = 'boss_rotjaw';
+    creatures.push({
+      id: bossId,
+      name: bossTmpl.name,
+      hp: bossTmpl.hp,
+      maxHp: bossTmpl.hp,
+      damage: bossTmpl.damage,
+      speed: bossTmpl.speed,
+      behavior: bossTmpl.behavior,
+      attackRange: bossTmpl.attackRange,
+      patrolRange: bossTmpl.patrolRange,
+      width: bossTmpl.width,
+      height: bossTmpl.height,
+      spriteType: bossTmpl.spriteType,
+      xpValue: bossTmpl.xpValue,
+      lootTable: bossTmpl.lootTable,
+      pos: { x: bossX, y: bossY },
+      vel: { x: 0, y: 0 },
+      facing: -1,
+      state: 'patrol',
+      attackCooldown: 0,
+      patrolOrigin: { x: bossX, y: bossY },
+      deathTimer: 0,
+      rangedCooldown: 0,
+      animFrame: 0,
+      animTimer: 0,
+      corruptionPulse: 0,
+    });
+
     return creatures;
   }
 
