@@ -1,8 +1,8 @@
 import {
   GameState, Player, Creature, Projectile, DroppedItem, AirBubble, Particle,
-  Vec2, GameCallbacks, RARITY_COLORS, ItemDef,
+  Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment,
 } from './types';
-import { ITEMS, CREATURE_TEMPLATES } from './data';
+import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES } from './data';
 
 // Upgraded resolution: 52px-based viewport
 const GAME_W = 780;
@@ -73,6 +73,14 @@ export class Game {
       gameOver: false, paused: false, showInventory: false,
       showSkillTree: false,
       depthZone: 0,
+      boss: {
+        active: false, phase: 1, creatureId: '',
+        chargeTimer: 0, chargeDir: { x: 0, y: 0 }, isCharging: false,
+        chargeCooldown: 3, comboCount: 0, comboCooldown: 2,
+        phaseTransition: 0, roarTimer: 0, defeated: false,
+      },
+      memoryFragments: [],
+      memoryCollected: null,
       skills: {
         levels: { diving: 0, combat: 0, stealth: 0, crafting: 0, resilience: 0 },
         skillPoints: 2,
