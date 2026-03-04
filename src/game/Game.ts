@@ -1020,7 +1020,9 @@ export class Game {
     this.renderRocks(ctx, cam);
     this.renderAirBubbles(ctx, cam);
     this.renderDroppedItems(ctx, cam);
+    this.renderMemoryFragments(ctx, cam);
     this.renderCreatures(ctx, cam);
+    this.renderBossHPBar(ctx);
     this.renderPlayer(ctx, cam);
     this.renderProjectiles(ctx, cam);
     this.renderParticles(ctx, cam);
