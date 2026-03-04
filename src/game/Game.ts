@@ -285,7 +285,9 @@ export class Game {
     this.updatePlayer(dt);
     this.updateProjectiles(dt);
     this.updateCreatures(dt);
+    this.updateBoss(dt);
     this.updateDroppedItems(dt);
+    this.updateMemoryFragments(dt);
     this.updateAirBubbles(dt);
     this.updateParticles(dt);
     this.updateCamera();

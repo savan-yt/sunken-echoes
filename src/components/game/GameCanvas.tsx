@@ -5,20 +5,19 @@ import { GameState, ItemDef } from '@/game/types';
 interface GameCanvasProps {
   onStateUpdate: (state: GameState) => void;
   onItemPickup: (item: ItemDef, count: number) => void;
+  onMemoryFragment: (title: string, text: string) => void;
   gameRef: React.MutableRefObject<Game | null>;
   running: boolean;
 }
 
-export default function GameCanvas({ onStateUpdate, onItemPickup, gameRef, running }: GameCanvasProps) {
+export default function GameCanvas({ onStateUpdate, onItemPickup, onMemoryFragment, gameRef, running }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handlePlayerDeath = useCallback(() => {
     onStateUpdate(gameRef.current!.state);
   }, [gameRef, onStateUpdate]);
 
-  const handleCreatureKill = useCallback((_name: string) => {
-    // Could show kill notification
-  }, []);
+  const handleCreatureKill = useCallback((_name: string) => {}, []);
 
   useEffect(() => {
     if (!canvasRef.current || !running) return;
@@ -28,6 +27,7 @@ export default function GameCanvas({ onStateUpdate, onItemPickup, gameRef, runni
       onItemPickup,
       onPlayerDeath: handlePlayerDeath,
       onCreatureKill: handleCreatureKill,
+      onMemoryFragment,
     });
     gameRef.current = game;
     game.start();

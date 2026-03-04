@@ -6,11 +6,13 @@ import HUD from '@/components/game/HUD';
 import Inventory from '@/components/game/Inventory';
 import SkillTree from '@/components/game/SkillTree';
 import TitleScreen from '@/components/game/TitleScreen';
+import MemoryFragmentOverlay from '@/components/game/MemoryFragmentOverlay';
 import { toast } from 'sonner';
 
 export default function Index() {
   const [screen, setScreen] = useState<'title' | 'game'>('title');
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [memoryFragment, setMemoryFragment] = useState<{ title: string; text: string } | null>(null);
   const gameRef = useRef<Game | null>(null);
 
   const handleStateUpdate = useCallback((state: GameState) => {
@@ -28,6 +30,22 @@ export default function Index() {
         color: 'hsl(200, 20%, 85%)',
       },
     });
+  }, []);
+
+  const handleMemoryFragment = useCallback((title: string, text: string) => {
+    setMemoryFragment({ title, text });
+    if (gameRef.current) {
+      gameRef.current.state.paused = true;
+    }
+  }, []);
+
+  const handleCloseMemoryFragment = useCallback(() => {
+    setMemoryFragment(null);
+    if (gameRef.current) {
+      gameRef.current.state.paused = false;
+      gameRef.current.state.memoryCollected = null;
+      setGameState({ ...gameRef.current.state });
+    }
   }, []);
 
   const handleCloseInventory = useCallback(() => {
@@ -114,6 +132,7 @@ export default function Index() {
       <GameCanvas
         onStateUpdate={handleStateUpdate}
         onItemPickup={handleItemPickup}
+        onMemoryFragment={handleMemoryFragment}
         gameRef={gameRef}
         running={screen === 'game'}
       />
@@ -132,6 +151,13 @@ export default function Index() {
           onClose={handleCloseSkillTree}
           onAllocateStat={handleAllocateStat}
           onUnlockSkill={handleUnlockSkill}
+        />
+      )}
+      {memoryFragment && (
+        <MemoryFragmentOverlay
+          title={memoryFragment.title}
+          text={memoryFragment.text}
+          onClose={handleCloseMemoryFragment}
         />
       )}
     </div>
