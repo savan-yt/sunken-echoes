@@ -471,6 +471,41 @@ export class Game {
       this.state.skills.statPoints += 3;
     }
 
+    // Boss death — drop memory fragment
+    if (c.id === 'boss_rotjaw') {
+      this.state.boss.defeated = true;
+      this.state.boss.active = false;
+      c.deathTimer = 4; // longer death for boss
+      const tmpl = BOSS_TEMPLATES.rotjaw;
+      this.state.memoryFragments.push({
+        pos: { x: c.pos.x + c.width / 2, y: c.pos.y },
+        vel: { x: 0, y: -15 },
+        lifetime: 60,
+        bobOffset: 0,
+        collected: false,
+        collectTimer: 0,
+        title: tmpl.memoryFragment.title,
+        text: tmpl.memoryFragment.text,
+      });
+      // Massive boss death explosion
+      for (let i = 0; i < 30; i++) {
+        this.state.particles.push({
+          pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 120, y: (Math.random() - 0.5) * 120 },
+          lifetime: 2, maxLifetime: 2, size: 3 + Math.random() * 4,
+          color: Math.random() > 0.5 ? '#ff2244' : '#aa22ff', type: 'damage',
+        });
+      }
+      for (let i = 0; i < 20; i++) {
+        this.state.particles.push({
+          pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+          lifetime: 3, maxLifetime: 3, size: 2 + Math.random() * 3,
+          color: '#cc88ff', type: 'memory',
+        });
+      }
+    }
+
     // Drop loot
     for (const loot of c.lootTable) {
       if (Math.random() < loot.chance) {
@@ -487,7 +522,7 @@ export class Game {
       }
     }
 
-    // Death particles - more elaborate
+    // Death particles
     for (let i = 0; i < 12; i++) {
       this.state.particles.push({
         pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
@@ -496,7 +531,6 @@ export class Game {
         color: '#ff4466', type: 'damage',
       });
     }
-    // Corruption burst
     for (let i = 0; i < 6; i++) {
       this.state.particles.push({
         pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
@@ -505,6 +539,190 @@ export class Game {
         color: '#aa22ff', type: 'corruption',
       });
     }
+  }
+
+  updateBoss(dt: number) {
+    const boss = this.state.boss;
+    if (boss.defeated) return;
+
+    const bossCreature = this.state.creatures.find(c => c.id === 'boss_rotjaw');
+    if (!bossCreature || bossCreature.state === 'dead') return;
+
+    const p = this.state.player;
+    const dx = p.pos.x - bossCreature.pos.x;
+    const dy = p.pos.y - bossCreature.pos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Activate boss when player is near
+    if (!boss.active && dist < 250) {
+      boss.active = true;
+      boss.creatureId = bossCreature.id;
+      bossCreature.state = 'chase';
+    }
+
+    if (!boss.active) return;
+
+    // Determine phase based on HP
+    const hpPct = bossCreature.hp / bossCreature.maxHp;
+    const newPhase = hpPct > 0.6 ? 1 : hpPct > 0.3 ? 2 : 3;
+    if (newPhase !== boss.phase) {
+      boss.phase = newPhase as 1 | 2 | 3;
+      boss.phaseTransition = 1.5;
+      // Phase transition roar — particles burst
+      for (let i = 0; i < 15; i++) {
+        this.state.particles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 100, y: (Math.random() - 0.5) * 100 },
+          lifetime: 1.5, maxLifetime: 1.5, size: 3 + Math.random() * 3,
+          color: newPhase === 3 ? '#ff2222' : '#ff6644', type: 'boss_charge',
+        });
+      }
+    }
+
+    if (boss.phaseTransition > 0) {
+      boss.phaseTransition -= dt;
+      return; // brief invulnerability during transition
+    }
+
+    boss.chargeCooldown -= dt;
+    boss.comboCooldown -= dt;
+    boss.roarTimer -= dt;
+
+    // Phase-specific boss speed multiplier
+    const speedMult = boss.phase === 3 ? 1.5 : boss.phase === 2 ? 1.2 : 1;
+    bossCreature.speed = 70 * speedMult;
+
+    // CHARGE ATTACK
+    if (boss.isCharging) {
+      boss.chargeTimer -= dt;
+      bossCreature.vel.x = boss.chargeDir.x * 180 * speedMult;
+      bossCreature.vel.y = boss.chargeDir.y * 180 * speedMult;
+
+      // Charge trail particles
+      if (Math.random() < 0.5) {
+        this.state.particles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: -boss.chargeDir.x * 30 + (Math.random() - 0.5) * 20, y: -boss.chargeDir.y * 30 + (Math.random() - 0.5) * 20 },
+          lifetime: 0.6, maxLifetime: 0.6, size: 3,
+          color: '#ff4422', type: 'boss_charge',
+        });
+      }
+
+      // Check hit during charge
+      if (dist < 40 && p.invincible <= 0) {
+        const chargeDmg = Math.floor(bossCreature.damage * 1.5);
+        const defense = this.getStatBonus('defense');
+        p.hp -= Math.max(1, chargeDmg - defense);
+        p.invincible = 0.8;
+        p.vel.x += boss.chargeDir.x * 150;
+        p.vel.y += boss.chargeDir.y * 80;
+        this.spawnDamageParticles(p.pos.x, p.pos.y, false);
+      }
+
+      if (boss.chargeTimer <= 0) {
+        boss.isCharging = false;
+        boss.chargeCooldown = boss.phase === 3 ? 2 : boss.phase === 2 ? 3 : 4;
+      }
+      return;
+    }
+
+    // Initiate charge attack
+    if (boss.chargeCooldown <= 0 && dist < 300 && dist > 60) {
+      const nd = dist || 1;
+      boss.chargeDir = { x: dx / nd, y: dy / nd };
+      boss.isCharging = true;
+      boss.chargeTimer = 0.6;
+      boss.chargeCooldown = 5;
+      // Charge windup particles
+      for (let i = 0; i < 8; i++) {
+        this.state.particles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 40, y: (Math.random() - 0.5) * 40 },
+          lifetime: 0.4, maxLifetime: 0.4, size: 2,
+          color: '#ffaa22', type: 'boss_charge',
+        });
+      }
+      return;
+    }
+
+    // BITE COMBO (Phase 2+)
+    if (boss.phase >= 2 && boss.comboCooldown <= 0 && dist < bossCreature.attackRange * 1.5) {
+      const comboHits = boss.phase === 3 ? 3 : 2;
+      for (let hit = 0; hit < comboHits; hit++) {
+        setTimeout(() => {
+          if (bossCreature.state === 'dead') return;
+          const cdx = p.pos.x - bossCreature.pos.x;
+          const cdy = p.pos.y - bossCreature.pos.y;
+          const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+          if (cdist < bossCreature.attackRange * 2 && p.invincible <= 0) {
+            const defense = this.getStatBonus('defense');
+            const dmg = Math.max(1, Math.floor(bossCreature.damage * 0.8) - defense);
+            p.hp -= dmg;
+            p.invincible = 0.3;
+            this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
+            if (p.hp <= 0) {
+              this.state.gameOver = true;
+              this.callbacks.onPlayerDeath();
+            }
+          }
+        }, hit * 300);
+      }
+      boss.comboCooldown = boss.phase === 3 ? 2.5 : 4;
+      boss.comboCount++;
+    }
+
+    // Phase 3: fire projectiles periodically
+    if (boss.phase === 3 && bossCreature.rangedCooldown <= 0 && dist < 250) {
+      const nd = dist || 1;
+      // Spread shot — 3 projectiles
+      for (let i = -1; i <= 1; i++) {
+        const angle = Math.atan2(dy, dx) + i * 0.25;
+        this.state.projectiles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: Math.cos(angle) * 120, y: Math.sin(angle) * 120 },
+          width: 8, height: 8, damage: Math.floor(bossCreature.damage * 0.5),
+          lifetime: 2, fromPlayer: false, type: 'acid',
+        });
+      }
+      bossCreature.rangedCooldown = 2;
+    }
+  }
+
+  updateMemoryFragments(dt: number) {
+    const p = this.state.player;
+    this.state.memoryFragments = this.state.memoryFragments.filter(mf => {
+      if (mf.collected) {
+        mf.collectTimer -= dt;
+        return mf.collectTimer > 0;
+      }
+
+      mf.vel.y *= 0.98;
+      mf.pos.y += mf.vel.y * dt;
+      mf.lifetime -= dt;
+      mf.bobOffset += dt;
+
+      // Pickup check
+      const dx = p.pos.x + p.width / 2 - mf.pos.x;
+      const dy = p.pos.y + p.height / 2 - mf.pos.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 30) {
+        mf.collected = true;
+        mf.collectTimer = 0.5;
+        this.state.memoryCollected = { title: mf.title, text: mf.text };
+        this.callbacks.onMemoryFragment(mf.title, mf.text);
+        // Collection particles
+        for (let i = 0; i < 20; i++) {
+          this.state.particles.push({
+            pos: { ...mf.pos },
+            vel: { x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60 },
+            lifetime: 1.5, maxLifetime: 1.5, size: 2 + Math.random() * 2,
+            color: Math.random() > 0.5 ? '#cc88ff' : '#ffffff', type: 'memory',
+          });
+        }
+        return true;
+      }
+
+      return mf.lifetime > 0;
+    });
   }
 
   updateCreatures(dt: number) {
