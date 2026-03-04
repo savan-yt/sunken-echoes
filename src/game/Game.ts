@@ -1531,6 +1531,100 @@ export class Game {
         ctx.fillRect(w - 18, h * 0.1 + bob, 4, 5);
         break;
       }
+
+      case 'rotjaw': {
+        // ROTJAW BOSS — massive corrupted shark with split jaw
+        const boss = this.state.boss;
+        const phaseColor = boss.phase === 3 ? '#cc2222' : boss.phase === 2 ? '#aa4433' : '#556070';
+        const phaseGlow = boss.phase === 3 ? 0.8 : boss.phase === 2 ? 0.5 : 0.3;
+
+        // Main body — larger and more menacing
+        ctx.fillStyle = phaseColor;
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Armored plates
+        ctx.fillStyle = '#333840';
+        ctx.fillRect(-w + 2, -h + 2 + bob, w * 2 - 4, 4);
+        ctx.fillRect(-w + 4, -h + 8 + bob, w * 2 - 8, 3);
+        // Lighter underbelly
+        ctx.fillStyle = '#667580';
+        ctx.fillRect(-w + 3, h * 0.3 + bob, w * 2 - 6, h * 0.7 - 3);
+
+        // Massive dorsal fin with black coral fusion
+        ctx.fillStyle = '#222228';
+        ctx.fillRect(-5, -h - 10 + bob, 12, 12);
+        ctx.fillStyle = '#111118';
+        ctx.fillRect(-3, -h - 12 + bob, 8, 5);
+        // Coral growths on dorsal
+        ctx.fillStyle = '#1a1a22';
+        ctx.fillRect(5, -h - 8 + bob, 4, 3);
+        ctx.fillRect(-7, -h - 6 + bob, 3, 4);
+
+        // Tail with power
+        const tailSwing = Math.sin(this.state.time * 5) * 4;
+        ctx.fillStyle = '#445060';
+        ctx.fillRect(-w - 14, -h + 3 + bob + tailSwing, 16, h * 2 - 6);
+        ctx.fillRect(-w - 20, -h + bob + tailSwing, 8, 5);
+        ctx.fillRect(-w - 20, h - 5 + bob + tailSwing, 8, 5);
+
+        // SPLIT JAW — signature feature
+        const jawOpen = boss.active ? 3 + Math.sin(this.state.time * 4) * 2 : 1;
+        // Upper jaw
+        ctx.fillStyle = '#443038';
+        ctx.fillRect(w - 10, -h + 2 + bob - jawOpen, 14, h - 2);
+        // Lower jaw
+        ctx.fillRect(w - 10, h * 0.1 + bob + jawOpen, 14, h - 2);
+        // Teeth — upper
+        ctx.fillStyle = '#eeddcc';
+        for (let i = 0; i < 6; i++) {
+          ctx.fillRect(w - 8 + i * 3, h * 0.1 + bob - jawOpen - 1, 1, 4);
+        }
+        // Teeth — lower
+        for (let i = 0; i < 6; i++) {
+          ctx.fillRect(w - 8 + i * 3, h * 0.1 + bob + jawOpen - 2, 1, 4);
+        }
+        // Dripping from jaw
+        if (frame % 3 === 0) {
+          ctx.fillStyle = `rgba(255, 60, 30, 0.6)`;
+          ctx.fillRect(w - 4, h * 0.1 + bob + jawOpen + h - 2, 2, 4 + Math.random() * 3);
+        }
+
+        // Corruption veins — glowing
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow * phaseGlow})`;
+        ctx.fillRect(-w + 5, -h + 5 + bob, 2, h * 1.5);
+        ctx.fillRect(-w + 14, -h + 3 + bob, 2, h * 1.8);
+        ctx.fillRect(w - 20, -h + 7 + bob, 2, h * 1.2);
+        ctx.fillRect(-w + 8, h * 0.2 + bob, w, 1);
+
+        // Torn skin revealing glowing muscle
+        ctx.fillStyle = `rgba(255, 100, 80, ${corruptGlow * 0.6})`;
+        ctx.fillRect(-w + 10, -h + 10 + bob, 8, 4);
+        ctx.fillRect(w - 25, h * 0.15 + bob, 6, 6);
+
+        // Glowing red eyes — INTENSE
+        ctx.fillStyle = `rgba(255, 20, 20, ${corruptGlow})`;
+        ctx.fillRect(w - 8, -h + 4 + bob, 5, 5);
+        // Eye glow halo
+        ctx.fillStyle = `rgba(255, 20, 20, ${corruptGlow * 0.3})`;
+        ctx.fillRect(w - 12, -h + bob, 13, 13);
+
+        // Phase 2+: corruption spreading visuals
+        if (boss.phase >= 2) {
+          ctx.fillStyle = `rgba(180, 30, 30, ${0.2 + Math.sin(this.state.time * 3) * 0.1})`;
+          ctx.fillRect(-w - 3, -h - 3 + bob, w * 2 + 6, h * 2 + 6);
+        }
+        // Phase 3: rage aura
+        if (boss.phase === 3) {
+          ctx.fillStyle = `rgba(255, 0, 0, ${0.1 + Math.sin(this.state.time * 6) * 0.05})`;
+          ctx.fillRect(-w - 8, -h - 8 + bob, w * 2 + 16, h * 2 + 16);
+        }
+
+        // Charging visual
+        if (boss.isCharging) {
+          ctx.fillStyle = `rgba(255, 150, 50, ${0.4 + Math.sin(this.state.time * 15) * 0.2})`;
+          ctx.fillRect(-w - 5, -h - 5 + bob, w * 2 + 10, h * 2 + 10);
+        }
+        break;
+      }
     }
   }
 
