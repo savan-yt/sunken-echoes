@@ -739,6 +739,8 @@ export class Game {
       if (c.state === 'dead') {
         c.deathTimer -= dt;
         if (c.deathTimer <= 0) {
+          // Boss doesn't respawn
+          if (c.id === 'boss_rotjaw') continue;
           const x = p.pos.x + (Math.random() > 0.5 ? 1 : -1) * (500 + Math.random() * 400);
           const clampedX = Math.max(50, Math.min(WORLD_W - 50, x));
           const tx = Math.floor(clampedX);
