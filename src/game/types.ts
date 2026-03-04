@@ -92,6 +92,34 @@ export interface DroppedItem {
   bobOffset: number;
 }
 
+export interface MemoryFragment {
+  pos: Vec2;
+  vel: Vec2;
+  lifetime: number;
+  bobOffset: number;
+  collected: boolean;
+  collectTimer: number;
+  text: string;
+  title: string;
+}
+
+export type BossPhase = 1 | 2 | 3;
+
+export interface BossState {
+  active: boolean;
+  phase: BossPhase;
+  creatureId: string;
+  chargeTimer: number;
+  chargeDir: Vec2;
+  isCharging: boolean;
+  chargeCooldown: number;
+  comboCount: number;
+  comboCooldown: number;
+  phaseTransition: number; // timer for phase transition animation
+  roarTimer: number;
+  defeated: boolean;
+}
+
 export interface AirBubble {
   pos: Vec2;
   size: number;
@@ -106,7 +134,7 @@ export interface Particle {
   maxLifetime: number;
   size: number;
   color: string;
-  type: 'bubble' | 'glow' | 'damage' | 'pickup' | 'corruption' | 'light';
+  type: 'bubble' | 'glow' | 'damage' | 'pickup' | 'corruption' | 'light' | 'boss_charge' | 'memory';
 }
 
 // ======== STAT & SKILL SYSTEM ========
@@ -234,6 +262,9 @@ export interface GameState {
   showSkillTree: boolean;
   skills: SkillState;
   depthZone: number; // 0-4
+  boss: BossState;
+  memoryFragments: MemoryFragment[];
+  memoryCollected: { title: string; text: string } | null; // currently showing
 }
 
 export interface GameCallbacks {
@@ -241,6 +272,7 @@ export interface GameCallbacks {
   onItemPickup: (item: ItemDef, count: number) => void;
   onPlayerDeath: () => void;
   onCreatureKill: (name: string) => void;
+  onMemoryFragment: (title: string, text: string) => void;
 }
 
 export const RARITY_COLORS: Record<Rarity, string> = {
