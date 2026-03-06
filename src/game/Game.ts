@@ -915,7 +915,7 @@ export class Game {
       const dx = p.pos.x + p.width / 2 - ab.pos.x;
       const dy = p.pos.y + p.height / 2 - ab.pos.y;
       if (Math.sqrt(dx * dx + dy * dy) < ab.size + 12) {
-        p.oxygen = Math.min(p.maxOxygen, p.oxygen + 15);
+        p.oxygen = Math.min(p.maxOxygen, p.oxygen + p.maxOxygen * 0.3);
         ab.active = false;
         ab.respawnTimer = 20 + Math.random() * 10;
         for (let i = 0; i < 8; i++) {
