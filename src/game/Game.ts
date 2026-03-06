@@ -1949,7 +1949,7 @@ export class Game {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
         ctx.globalAlpha = alpha * 0.3;
         ctx.fillRect(sx - p.size * 1.5, sy - p.size * 1.5, p.size * 3, p.size * 3);
-      } else if ((p as any).type === 'pickup_text') {
+      } else if (p.type === 'pickup_text') {
         ctx.font = 'bold 11px "Press Start 2P", monospace';
         ctx.fillStyle = p.color;
         ctx.textAlign = 'center';
