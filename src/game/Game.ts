@@ -918,6 +918,13 @@ export class Game {
         p.oxygen = Math.min(p.maxOxygen, p.oxygen + p.maxOxygen * 0.3);
         ab.active = false;
         ab.respawnTimer = 20 + Math.random() * 10;
+        // "+30% O₂" floating text
+        this.state.particles.push({
+          pos: { x: p.pos.x + p.width / 2, y: p.pos.y - 5 },
+          vel: { x: 0, y: -30 },
+          lifetime: 1.2, maxLifetime: 1.2, size: 10,
+          color: '#66ddff', type: 'pickup_text' as any,
+        });
         for (let i = 0; i < 8; i++) {
           this.state.particles.push({
             pos: { ...ab.pos },
