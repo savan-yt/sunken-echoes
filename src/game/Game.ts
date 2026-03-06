@@ -923,7 +923,7 @@ export class Game {
           pos: { x: p.pos.x + p.width / 2, y: p.pos.y - 5 },
           vel: { x: 0, y: -30 },
           lifetime: 1.2, maxLifetime: 1.2, size: 10,
-          color: '#66ddff', type: 'pickup_text' as any,
+          color: '#66ddff', type: 'pickup_text',
         });
         for (let i = 0; i < 8; i++) {
           this.state.particles.push({
