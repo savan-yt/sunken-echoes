@@ -12,7 +12,7 @@ export default function HUD({ state }: HUDProps) {
   const hpPct = (player.hp / player.maxHp) * 100;
 
   return (
-    <div className="absolute inset-x-0 bottom-0 pointer-events-none select-none" style={{ fontFamily: '"Press Start 2P", cursive' }}>
+    <div className="absolute inset-0 pointer-events-none select-none" style={{ fontFamily: '"Press Start 2P", cursive' }}>
       {/* Top bars */}
       <div className="absolute top-3 left-3 flex flex-col gap-2">
         {/* HP Bar */}
