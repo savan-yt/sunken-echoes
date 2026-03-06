@@ -14,36 +14,52 @@ export default function HUD({ state }: HUDProps) {
   return (
     <div className="absolute inset-x-0 bottom-0 pointer-events-none select-none" style={{ fontFamily: '"Press Start 2P", cursive' }}>
       {/* Top bars */}
-      <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-        {/* HP */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[8px] text-health w-6">HP</span>
-          <div className="w-28 h-2.5 bg-secondary/60 pixel-border">
+      <div className="absolute top-3 left-3 flex flex-col gap-2">
+        {/* HP Bar */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] w-8" style={{ color: hpPct > 50 ? '#44cc66' : hpPct > 25 ? '#ccaa22' : '#cc3333' }}>❤️</span>
+          <div className="relative w-44 h-4 bg-secondary/70 pixel-border overflow-hidden">
             <div
               className="h-full transition-all duration-300"
               style={{
                 width: `${hpPct}%`,
-                backgroundColor: hpPct > 50 ? '#44cc66' : hpPct > 25 ? '#ccaa22' : '#cc3333',
+                background: hpPct > 50
+                  ? 'linear-gradient(90deg, #22994488, #44cc66)'
+                  : hpPct > 25
+                  ? 'linear-gradient(90deg, #aa880088, #ccaa22)'
+                  : 'linear-gradient(90deg, #99222288, #cc3333)',
+                boxShadow: hpPct <= 25 ? '0 0 8px #cc3333' : 'none',
               }}
             />
+            <span className="absolute inset-0 flex items-center justify-center text-[8px] text-foreground/90 drop-shadow-md">
+              {Math.ceil(player.hp)} / {Math.ceil(player.maxHp)}
+            </span>
           </div>
-          <span className="text-[7px] text-foreground/70">{Math.ceil(player.hp)}/{Math.ceil(player.maxHp)}</span>
         </div>
-        {/* Oxygen */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[8px] text-oxygen w-6">O₂</span>
-          <div className="w-28 h-2.5 bg-secondary/60 pixel-border">
+        {/* Oxygen Bar */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] w-8">🫧</span>
+          <div className="relative w-44 h-4 bg-secondary/70 pixel-border overflow-hidden">
             <div
               className="h-full bg-oxygen transition-all duration-300"
-              style={{ width: `${oxygenPct}%`, opacity: oxygenPct < 25 ? 0.5 + Math.sin(Date.now() * 0.01) * 0.5 : 1 }}
+              style={{
+                width: `${oxygenPct}%`,
+                background: oxygenPct > 30
+                  ? 'linear-gradient(90deg, hsl(195, 90%, 30%), hsl(195, 90%, 50%))'
+                  : 'linear-gradient(90deg, hsl(0, 70%, 30%), hsl(0, 70%, 50%))',
+                opacity: oxygenPct < 25 ? 0.5 + Math.sin(Date.now() * 0.01) * 0.5 : 1,
+                boxShadow: oxygenPct < 25 ? '0 0 8px hsl(0, 70%, 50%)' : '0 0 6px hsl(195, 90%, 50%, 0.3)',
+              }}
             />
+            <span className="absolute inset-0 flex items-center justify-center text-[8px] text-foreground/90 drop-shadow-md">
+              {Math.ceil(player.oxygen)}%
+            </span>
           </div>
-          <span className="text-[7px] text-foreground/70">{Math.ceil(player.oxygen)}%</span>
         </div>
         {/* Zone */}
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[6px] text-muted-foreground">📍</span>
-          <span className="text-[6px] text-primary/70">{ZONE_NAMES[state.depthZone] || 'Unknown'}</span>
+          <span className="text-[7px] text-muted-foreground">📍</span>
+          <span className="text-[7px] text-primary/70">{ZONE_NAMES[state.depthZone] || 'Unknown'}</span>
         </div>
       </div>
 
