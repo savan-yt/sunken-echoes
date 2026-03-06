@@ -134,7 +134,7 @@ export interface Particle {
   maxLifetime: number;
   size: number;
   color: string;
-  type: 'bubble' | 'glow' | 'damage' | 'pickup' | 'corruption' | 'light' | 'boss_charge' | 'memory';
+  type: 'bubble' | 'glow' | 'damage' | 'pickup' | 'corruption' | 'light' | 'boss_charge' | 'memory' | 'pickup_text';
 }
 
 // ======== STAT & SKILL SYSTEM ========
