@@ -918,6 +918,13 @@ export class Game {
         p.oxygen = Math.min(p.maxOxygen, p.oxygen + p.maxOxygen * 0.3);
         ab.active = false;
         ab.respawnTimer = 20 + Math.random() * 10;
+        // "+30% O₂" floating text
+        this.state.particles.push({
+          pos: { x: p.pos.x + p.width / 2, y: p.pos.y - 5 },
+          vel: { x: 0, y: -30 },
+          lifetime: 1.2, maxLifetime: 1.2, size: 10,
+          color: '#66ddff', type: 'pickup_text',
+        });
         for (let i = 0; i < 8; i++) {
           this.state.particles.push({
             pos: { ...ab.pos },
@@ -1942,6 +1949,14 @@ export class Game {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
         ctx.globalAlpha = alpha * 0.3;
         ctx.fillRect(sx - p.size * 1.5, sy - p.size * 1.5, p.size * 3, p.size * 3);
+      } else if (p.type === 'pickup_text') {
+        ctx.font = 'bold 11px "Press Start 2P", monospace';
+        ctx.fillStyle = p.color;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.fillText('+30% O₂', sx, sy);
+        ctx.shadowBlur = 0;
       } else {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
       }
