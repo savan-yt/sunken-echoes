@@ -3,6 +3,7 @@ import {
   Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment,
 } from './types';
 import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES } from './data';
+import { RECIPES, canCraft } from './crafting';
 
 // Upgraded resolution: 52px-based viewport
 const GAME_W = 780;
@@ -2072,6 +2073,52 @@ export class Game {
 
   restart() {
     this.state = this.createInitialState();
+    this.callbacks.onStateUpdate({ ...this.state });
+  }
+
+  craftItem(recipeId: string) {
+    const recipe = RECIPES.find(r => r.id === recipeId);
+    if (!recipe) return;
+    const p = this.state.player;
+    const allSlots = [...p.inventory, ...p.quickslots];
+    if (!canCraft(recipe, allSlots)) return;
+
+    // Remove ingredients from inventory first, then quickslots
+    const remaining = new Map(recipe.ingredients.map(i => [i.itemId, i.count]));
+    for (let i = 0; i < p.inventory.length && remaining.size > 0; i++) {
+      const slot = p.inventory[i];
+      if (!slot) continue;
+      const need = remaining.get(slot.item.id);
+      if (need === undefined) continue;
+      const take = Math.min(need, slot.count);
+      slot.count -= take;
+      if (slot.count <= 0) p.inventory[i] = null;
+      const left = need - take;
+      if (left <= 0) remaining.delete(slot.item.id);
+      else remaining.set(slot.item.id, left);
+    }
+    for (let i = 0; i < p.quickslots.length && remaining.size > 0; i++) {
+      const slot = p.quickslots[i];
+      if (!slot) continue;
+      const need = remaining.get(slot.item.id);
+      if (need === undefined) continue;
+      const take = Math.min(need, slot.count);
+      slot.count -= take;
+      if (slot.count <= 0) p.quickslots[i] = null;
+      const left = need - take;
+      if (left <= 0) remaining.delete(slot.item.id);
+      else remaining.set(slot.item.id, left);
+    }
+
+    // Add result to first empty inventory slot
+    const resultItem = ITEMS[recipe.result.itemId];
+    if (!resultItem) return;
+    const emptyIdx = p.inventory.findIndex(s => s === null);
+    if (emptyIdx !== -1) {
+      p.inventory[emptyIdx] = { item: resultItem, count: recipe.result.count };
+    }
+    // Could also stack if stackable — keeping simple for now
+
     this.callbacks.onStateUpdate({ ...this.state });
   }
 }
