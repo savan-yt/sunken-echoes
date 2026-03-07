@@ -113,6 +113,12 @@ export default function Index() {
     gameRef.current?.dropInventoryItem(invIdx);
   }, []);
 
+  const handleCraft = useCallback((recipeId: string) => {
+    if (!gameRef.current) return;
+    gameRef.current.craftItem(recipeId);
+    setGameState({ ...gameRef.current.state });
+  }, []);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'r' && gameState?.gameOver) {
@@ -143,6 +149,7 @@ export default function Index() {
           onClose={handleCloseInventory}
           onMoveToQuickslot={handleMoveToQuickslot}
           onDrop={handleDrop}
+          onCraft={handleCraft}
         />
       )}
       {gameState?.showSkillTree && (
