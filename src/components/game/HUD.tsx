@@ -64,7 +64,7 @@ export default function HUD({ state }: HUDProps) {
         </div>
       </div>
 
-      {/* Score, Level, Stats */}
+      {/* Score, Level, Stats + Minimap */}
       <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
         <span className="text-[8px] text-primary glow-cyan">{state.score}</span>
         <div className="flex items-center gap-1">
@@ -79,6 +79,9 @@ export default function HUD({ state }: HUDProps) {
         {state.skills.skillPoints > 0 && (
           <span className="text-[6px] text-rarity-epic animate-pulse-glow">★ {state.skills.skillPoints} AP</span>
         )}
+        <div className="mt-1">
+          <Minimap state={state} />
+        </div>
       </div>
 
       {/* Quickslot bar */}
