@@ -1,4 +1,5 @@
 import { GameState, RARITY_COLORS, ZONE_NAMES } from '@/game/types';
+import Minimap from './Minimap';
 
 interface HUDProps {
   state: GameState | null;
