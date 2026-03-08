@@ -163,6 +163,8 @@ export class Game {
         animTimer: 0,
         corruptionPulse: Math.random() * Math.PI * 2,
         xpValue: tmpl.xpValue,
+        poisonTimer: 0,
+        poisonDamage: 0,
       });
     }
 
