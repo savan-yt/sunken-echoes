@@ -2031,6 +2031,20 @@ export class Game {
         ctx.shadowBlur = 6;
         ctx.fillText('+30% O₂', sx, sy);
         ctx.shadowBlur = 0;
+      } else if (p.type === 'damage_text') {
+        const scale = 1 + (1 - alpha) * 0.3;
+        ctx.font = `bold ${Math.floor(p.size * scale)}px "Press Start 2P", monospace`;
+        ctx.fillStyle = p.color;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(p.text || '', sx, sy);
+        ctx.shadowBlur = 0;
+      } else if (p.type === 'poison') {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
+        ctx.globalAlpha = alpha * 0.5;
+        ctx.fillRect(sx - p.size, sy - p.size, p.size * 2, p.size * 2);
       } else {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
       }
