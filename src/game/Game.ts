@@ -304,6 +304,20 @@ export class Game {
   };
 
   update(dt: number) {
+    const oldZone = this.state.depthZone;
+
+    // During boss intro, only update camera and particles
+    if (this.bossIntroActive) {
+      this.bossIntroTimer -= dt;
+      this.updateCamera();
+      this.updateParticles(dt);
+      if (this.bossIntroTimer <= 0) {
+        this.bossIntroActive = false;
+      }
+      this.callbacks.onStateUpdate({ ...this.state });
+      return;
+    }
+
     this.updatePlayer(dt);
     this.updateProjectiles(dt);
     this.updateCreatures(dt);
@@ -314,8 +328,18 @@ export class Game {
     this.updateParticles(dt);
     this.updateCamera();
     this.spawnAmbientParticles(dt);
-    // Update depth zone
     this.state.depthZone = Math.min(4, Math.floor(this.state.player.pos.y / (WORLD_H / 5)));
+
+    // Zone transition detection
+    if (this.state.depthZone !== oldZone) {
+      this.zoneTransitionTimer = 3.5;
+      this.zoneTransitionName = ZONE_NAMES[this.state.depthZone] || 'Unknown';
+      this.zoneTransitionDepth = Math.floor(this.state.player.pos.y * 0.3);
+      this.prevZone = oldZone;
+    }
+
+    if (this.zoneTransitionTimer > 0) this.zoneTransitionTimer -= dt;
+
     this.callbacks.onStateUpdate({ ...this.state });
   }
 
