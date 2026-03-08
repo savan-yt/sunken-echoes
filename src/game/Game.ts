@@ -322,6 +322,22 @@ export class Game {
     }
   }
 
+  hasEquippedGear(itemId: string): boolean {
+    return this.state.player.quickslots.some(s => s && s.item.id === itemId);
+  }
+
+  getGearDamageReduction(): number {
+    let reduction = 0;
+    if (this.hasEquippedGear('bone_armor')) reduction += 0.15;
+    return reduction;
+  }
+
+  getGearOxygenReduction(): number {
+    let reduction = 0;
+    if (this.hasEquippedGear('pressure_suit')) reduction += 0.20;
+    return reduction;
+  }
+
   updatePlayer(dt: number) {
     const p = this.state.player;
     let ax = 0, ay = 0;
@@ -374,7 +390,8 @@ export class Game {
     // Oxygen drain - deeper = faster
     const depthFactor = 1 + (p.pos.y / WORLD_H) * 3;
     const divingReduction = 1 - this.state.skills.levels.diving * 0.1;
-    p.oxygen -= OXYGEN_DRAIN * depthFactor * divingReduction * dt;
+    const gearO2Reduction = 1 - this.getGearOxygenReduction();
+    p.oxygen -= OXYGEN_DRAIN * depthFactor * divingReduction * gearO2Reduction * dt;
     if (p.oxygen <= 0) {
       p.oxygen = 0;
       p.hp -= 10 * dt;
@@ -453,7 +470,7 @@ export class Game {
         const p = this.state.player;
         if (p.invincible <= 0 && this.aabb(proj, p)) {
           const defense = this.getStatBonus('defense');
-          const dmg = Math.max(1, proj.damage - defense);
+          const dmg = Math.max(1, Math.floor((proj.damage - defense) * (1 - this.getGearDamageReduction())));
           p.hp -= dmg;
           p.invincible = 0.5;
           this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
@@ -625,7 +642,7 @@ export class Game {
       if (dist < 40 && p.invincible <= 0) {
         const chargeDmg = Math.floor(bossCreature.damage * 1.5);
         const defense = this.getStatBonus('defense');
-        p.hp -= Math.max(1, chargeDmg - defense);
+        p.hp -= Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
         p.invincible = 0.8;
         p.vel.x += boss.chargeDir.x * 150;
         p.vel.y += boss.chargeDir.y * 80;
@@ -669,7 +686,7 @@ export class Game {
           const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
           if (cdist < bossCreature.attackRange * 2 && p.invincible <= 0) {
             const defense = this.getStatBonus('defense');
-            const dmg = Math.max(1, Math.floor(bossCreature.damage * 0.8) - defense);
+            const dmg = Math.max(1, Math.floor((bossCreature.damage * 0.8 - defense) * (1 - this.getGearDamageReduction())));
             p.hp -= dmg;
             p.invincible = 0.3;
             this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
@@ -795,7 +812,7 @@ export class Game {
 
         if (dist < c.attackRange && c.attackCooldown <= 0 && p.invincible <= 0) {
           const defense = this.getStatBonus('defense');
-          const dmg = Math.max(1, c.damage - defense);
+          const dmg = Math.max(1, Math.floor((c.damage - defense) * (1 - this.getGearDamageReduction())));
           p.hp -= dmg;
           p.invincible = 0.5;
           c.attackCooldown = 1;
