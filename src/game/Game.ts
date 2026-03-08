@@ -1,8 +1,9 @@
 import {
   GameState, Player, Creature, Projectile, DroppedItem, AirBubble, Particle,
   Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment, ZONE_NAMES,
+  NPCState, DialogueNode,
 } from './types';
-import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES, ZONE_CREATURES } from './data';
+import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES, ZONE_CREATURES, NPC_DEFS } from './data';
 import { RECIPES, canCraft } from './crafting';
 
 // Upgraded resolution: 52px-based viewport
