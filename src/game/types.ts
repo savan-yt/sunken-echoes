@@ -74,6 +74,8 @@ export interface Creature extends Entity {
   animTimer: number;
   corruptionPulse: number;
   xpValue: number;
+  poisonTimer: number;
+  poisonDamage: number;
 }
 
 export interface LootEntry {
