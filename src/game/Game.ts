@@ -693,7 +693,7 @@ export class Game {
 
     const dmgBonus = this.getStatBonus('damage');
     const weaponBonus = this.getEquippedWeaponDamage();
-    const baseDmg = HARPOON_DAMAGE + dmgBonus + weaponBonus + this.state.skills.levels.combat * 3;
+    const baseDmg = Math.floor((HARPOON_DAMAGE + dmgBonus + weaponBonus + this.state.skills.levels.combat * 3) * this.getDamageBonusMultiplier());
 
     // Critical hit
     const critChance = this.getStatBonus('critChance');
@@ -704,7 +704,7 @@ export class Game {
       pos: { x: p.pos.x + p.width / 2, y: p.pos.y + p.height / 2 },
       vel: { x: (dx / dist) * HARPOON_SPEED, y: (dy / dist) * HARPOON_SPEED },
       width: 5, height: 3, damage: finalDmg,
-      lifetime: 1.5, fromPlayer: true, type: isCrit ? 'harpoon_crit' : 'harpoon',
+      lifetime: 1.5 + this.getHarpoonLifetimeBonus(), fromPlayer: true, type: isCrit ? 'harpoon_crit' : 'harpoon',
     });
 
     for (let i = 0; i < 4; i++) {
