@@ -530,7 +530,13 @@ export class Game {
       if (proj.lifetime <= 0) return false;
 
       const tx = Math.floor(Math.max(0, Math.min(proj.pos.x, this.state.terrain.length - 1)));
-      if (proj.pos.y > this.state.terrain[tx]) return false;
+      if (proj.pos.y > this.state.terrain[tx]) {
+        // Impact ripple on terrain hit
+        if (proj.fromPlayer) {
+          this.spawnRipple(proj.pos.x, proj.pos.y, 25);
+        }
+        return false;
+      }
 
       if (proj.fromPlayer) {
         for (const c of this.state.creatures) {
