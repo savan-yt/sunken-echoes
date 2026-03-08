@@ -10,7 +10,7 @@ const MAP_H = 70;
 export default function Minimap({ state }: MinimapProps) {
   if (!state) return null;
 
-  const { player, creatures, airBubbles, droppedItems, worldWidth, worldHeight, boss, npcs } = state;
+  const { player, creatures, airBubbles, droppedItems, worldWidth, worldHeight, boss, npcs, waterCurrents } = state;
 
   const toMapX = (x: number) => (x / worldWidth) * MAP_W;
   const toMapY = (y: number) => (y / worldHeight) * MAP_H;
