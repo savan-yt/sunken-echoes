@@ -51,6 +51,9 @@ export class Game {
   distortionCanvas: HTMLCanvasElement | null = null;
   distortionCtx: CanvasRenderingContext2D | null = null;
   ripples: { x: number; y: number; radius: number; maxRadius: number; strength: number; time: number }[] = [];
+  // Buff timers
+  corruptedElixirTimer = 0;  // +50% damage for 8s
+  inkSmokeTimer = 0;         // blind enemies for 5s
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
@@ -345,10 +348,62 @@ export class Game {
     const slot = this.state.player.quickslots[this.state.player.activeQuickslot];
     if (!slot) return;
     if (slot.item.category === 'consumable') {
+      const p = this.state.player;
       if (slot.item.id === 'oxygen_canister') {
-        this.state.player.oxygen = Math.min(this.state.player.maxOxygen, this.state.player.oxygen + 30);
+        p.oxygen = Math.min(p.maxOxygen, p.oxygen + 30);
       } else if (slot.item.id === 'antitoxin') {
-        this.state.player.hp = Math.min(this.state.player.maxHp, this.state.player.hp + 20);
+        p.hp = Math.min(p.maxHp, p.hp + 20);
+      } else if (slot.item.id === 'medkit') {
+        p.hp = Math.min(p.maxHp, p.hp + 40);
+        this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, 40, '#44ff44');
+      } else if (slot.item.id === 'ink_bomb') {
+        // Blind nearby enemies briefly (3s)
+        for (const c of this.state.creatures) {
+          if (c.state === 'dead') continue;
+          const dx = c.pos.x - p.pos.x; const dy = c.pos.y - p.pos.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 120) {
+            c.state = 'patrol';
+            c.attackCooldown = 3;
+          }
+        }
+        this.triggerScreenShake(2, 0.2);
+      } else if (slot.item.id === 'ink_smoke') {
+        // Large area blind — enemies lose tracking for 5s
+        this.inkSmokeTimer = 5;
+        for (const c of this.state.creatures) {
+          if (c.state === 'dead') continue;
+          const dx = c.pos.x - p.pos.x; const dy = c.pos.y - p.pos.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 200) {
+            c.state = 'patrol';
+            c.attackCooldown = 5;
+          }
+        }
+        // Ink cloud particles
+        for (let i = 0; i < 20; i++) {
+          this.state.particles.push({
+            pos: { x: p.pos.x + p.width / 2 + (Math.random() - 0.5) * 40, y: p.pos.y + p.height / 2 + (Math.random() - 0.5) * 40 },
+            vel: { x: (Math.random() - 0.5) * 30, y: (Math.random() - 0.5) * 30 },
+            lifetime: 3, maxLifetime: 3, size: 6 + Math.random() * 8, color: '#1a0a2e', type: 'corruption',
+          });
+        }
+      } else if (slot.item.id === 'bio_stim') {
+        // Already handled by shoot cooldown check — simple speed boost via timer not yet needed
+        // For now: brief attack speed boost via reducing cooldown
+        p.shootCooldown = 0;
+      } else if (slot.item.id === 'corrupted_elixir') {
+        // +50% damage for 8s, costs 15 HP
+        this.corruptedElixirTimer = 8;
+        p.hp = Math.max(1, p.hp - 15);
+        this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, 15, '#cc44ff');
+        this.damageFlash = 0.15;
+        // Purple power aura
+        for (let i = 0; i < 12; i++) {
+          this.state.particles.push({
+            pos: { x: p.pos.x + p.width / 2, y: p.pos.y + p.height / 2 },
+            vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+            lifetime: 0.8, maxLifetime: 0.8, size: 3 + Math.random() * 3, color: '#cc44ff', type: 'corruption',
+          });
+        }
       }
       slot.count--;
       if (slot.count <= 0) this.state.player.quickslots[this.state.player.activeQuickslot] = null;
@@ -399,6 +454,10 @@ export class Game {
       this.callbacks.onStateUpdate({ ...this.state });
       return;
     }
+
+    // Update buff timers
+    if (this.corruptedElixirTimer > 0) this.corruptedElixirTimer -= dt;
+    if (this.inkSmokeTimer > 0) this.inkSmokeTimer -= dt;
 
     this.updatePlayer(dt);
     this.updateProjectiles(dt);
@@ -464,9 +523,10 @@ export class Game {
     const slot = this.state.player.quickslots[this.state.player.activeQuickslot];
     if (!slot || slot.item.category !== 'weapon') return 0;
     switch (slot.item.id) {
-      case 'reinforced_harpoon': return 8;   // +50% of base ~15
-      case 'venomous_harpoon': return 12;    // poison-tier damage
-      case 'abyssal_lance': return 20;       // devastating
+      case 'reinforced_harpoon': return 8;
+      case 'venomous_harpoon': return 12;
+      case 'abyssal_lance': return 20;
+      case 'tentacle_whip': return 14;       // strong + extended range
       default: return 0;
     }
   }
@@ -478,13 +538,58 @@ export class Game {
   getGearDamageReduction(): number {
     let reduction = 0;
     if (this.hasEquippedGear('bone_armor')) reduction += 0.15;
-    return reduction;
+    if (this.hasEquippedGear('tangle_shield')) reduction += 0.25;
+    return Math.min(reduction, 0.6); // cap at 60%
   }
 
   getGearOxygenReduction(): number {
     let reduction = 0;
     if (this.hasEquippedGear('pressure_suit')) reduction += 0.20;
     return reduction;
+  }
+
+  getDetectionMultiplier(): number {
+    let mult = 1;
+    if (this.hasEquippedGear('ink_cloak')) mult *= 0.7; // -30% detection
+    if (this.inkSmokeTimer > 0) mult *= 0.15;           // near-invisible during smoke
+    return mult;
+  }
+
+  getDamageBonusMultiplier(): number {
+    let mult = 1;
+    if (this.corruptedElixirTimer > 0) mult *= 1.5;
+    return mult;
+  }
+
+  getHarpoonLifetimeBonus(): number {
+    if (this.hasEquippedGear('tentacle_whip')) return 0.6; // +40% effective range via lifetime
+    return 0;
+  }
+
+  retaliateOnHit(attackerPos: Vec2) {
+    if (!this.hasEquippedGear('tangle_shield')) return;
+    // Spawn retaliation damage to nearby creatures
+    for (const c of this.state.creatures) {
+      if (c.state === 'dead') continue;
+      const dx = c.pos.x - attackerPos.x;
+      const dy = c.pos.y - attackerPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 60) {
+        const retDmg = 8;
+        c.hp -= retDmg;
+        this.spawnDamageNumber(c.pos.x + c.width / 2, c.pos.y, retDmg, '#aa66ff');
+        this.spawnDamageParticles(c.pos.x + c.width / 2, c.pos.y + c.height / 2, false);
+        // Purple retaliation particles
+        for (let i = 0; i < 3; i++) {
+          this.state.particles.push({
+            pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+            vel: { x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60 },
+            lifetime: 0.4, maxLifetime: 0.4, size: 3, color: '#aa44ff', type: 'corruption',
+          });
+        }
+        if (c.hp <= 0) this.killCreature(c);
+      }
+    }
   }
 
   updatePlayer(dt: number) {
@@ -592,7 +697,7 @@ export class Game {
 
     const dmgBonus = this.getStatBonus('damage');
     const weaponBonus = this.getEquippedWeaponDamage();
-    const baseDmg = HARPOON_DAMAGE + dmgBonus + weaponBonus + this.state.skills.levels.combat * 3;
+    const baseDmg = Math.floor((HARPOON_DAMAGE + dmgBonus + weaponBonus + this.state.skills.levels.combat * 3) * this.getDamageBonusMultiplier());
 
     // Critical hit
     const critChance = this.getStatBonus('critChance');
@@ -603,7 +708,7 @@ export class Game {
       pos: { x: p.pos.x + p.width / 2, y: p.pos.y + p.height / 2 },
       vel: { x: (dx / dist) * HARPOON_SPEED, y: (dy / dist) * HARPOON_SPEED },
       width: 5, height: 3, damage: finalDmg,
-      lifetime: 1.5, fromPlayer: true, type: isCrit ? 'harpoon_crit' : 'harpoon',
+      lifetime: 1.5 + this.getHarpoonLifetimeBonus(), fromPlayer: true, type: isCrit ? 'harpoon_crit' : 'harpoon',
     });
 
     for (let i = 0; i < 4; i++) {
@@ -1433,7 +1538,7 @@ export class Game {
       c.rangedCooldown -= dt;
 
       const stealthReduction = 1 - this.state.skills.levels.stealth * 0.1;
-      const detectRange = (c.behavior === 'ambush' ? 80 : 160) * stealthReduction;
+      const detectRange = (c.behavior === 'ambush' ? 80 : 160) * stealthReduction * this.getDetectionMultiplier();
       
       if (dist < detectRange && c.behavior !== 'patrol') {
         c.state = 'chase';
@@ -1461,6 +1566,7 @@ export class Game {
           this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
           this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
           this.triggerScreenShake(3, 0.15);
+          this.retaliateOnHit(c.pos);
           this.damageFlash = 0.12;
           this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
           if (p.hp <= 0) {
