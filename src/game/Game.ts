@@ -1766,6 +1766,7 @@ export class Game {
     this.renderParallaxLayers(ctx, cam);
     this.renderTerrain(ctx, cam);
     this.renderCorruptionTendrils(ctx, cam);
+    this.renderWaterCurrents(ctx, cam);
     this.renderKelp(ctx, cam);
     this.renderRocks(ctx, cam);
     this.renderAirBubbles(ctx, cam);
