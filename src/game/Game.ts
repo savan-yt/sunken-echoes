@@ -51,6 +51,9 @@ export class Game {
   distortionCanvas: HTMLCanvasElement | null = null;
   distortionCtx: CanvasRenderingContext2D | null = null;
   ripples: { x: number; y: number; radius: number; maxRadius: number; strength: number; time: number }[] = [];
+  // Buff timers
+  corruptedElixirTimer = 0;  // +50% damage for 8s
+  inkSmokeTimer = 0;         // blind enemies for 5s
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
