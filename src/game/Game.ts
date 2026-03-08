@@ -46,6 +46,10 @@ export class Game {
   zoneTransitionName = '';
   zoneTransitionDepth = 0;
   prevZone = 0;
+  // Water distortion
+  distortionCanvas: HTMLCanvasElement | null = null;
+  distortionCtx: CanvasRenderingContext2D | null = null;
+  ripples: { x: number; y: number; radius: number; maxRadius: number; strength: number; time: number }[] = [];
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
@@ -53,6 +57,12 @@ export class Game {
     this.callbacks = callbacks;
     canvas.width = GAME_W;
     canvas.height = GAME_H;
+
+    // Offscreen canvas for water distortion
+    this.distortionCanvas = document.createElement('canvas');
+    this.distortionCanvas.width = GAME_W;
+    this.distortionCanvas.height = GAME_H;
+    this.distortionCtx = this.distortionCanvas.getContext('2d')!;
 
     this.state = this.createInitialState();
     this.bindInput();
@@ -339,6 +349,26 @@ export class Game {
     }
 
     if (this.zoneTransitionTimer > 0) this.zoneTransitionTimer -= dt;
+    this.updateRipples(dt);
+
+    // Player wake ripples when moving
+    const p = this.state.player;
+    const speed = Math.sqrt(p.vel.x ** 2 + p.vel.y ** 2);
+    if (speed > 30 && Math.random() < speed * 0.003) {
+      this.spawnRipple(
+        p.pos.x + p.width / 2 - p.facing * 8,
+        p.pos.y + p.height / 2,
+        12 + speed * 0.15,
+        0.5
+      );
+      // Wake trail particles
+      this.state.particles.push({
+        pos: { x: p.pos.x + p.width / 2 - p.facing * 6, y: p.pos.y + p.height / 2 },
+        vel: { x: -p.vel.x * 0.15, y: -p.vel.y * 0.1 },
+        lifetime: 0.6, maxLifetime: 0.6, size: 1.5,
+        color: 'rgba(150, 220, 255, 0.2)', type: 'wake',
+      });
+    }
 
     this.callbacks.onStateUpdate({ ...this.state });
   }
@@ -500,7 +530,13 @@ export class Game {
       if (proj.lifetime <= 0) return false;
 
       const tx = Math.floor(Math.max(0, Math.min(proj.pos.x, this.state.terrain.length - 1)));
-      if (proj.pos.y > this.state.terrain[tx]) return false;
+      if (proj.pos.y > this.state.terrain[tx]) {
+        // Impact ripple on terrain hit
+        if (proj.fromPlayer) {
+          this.spawnRipple(proj.pos.x, proj.pos.y, 25);
+        }
+        return false;
+      }
 
       if (proj.fromPlayer) {
         for (const c of this.state.creatures) {
@@ -510,6 +546,8 @@ export class Game {
             c.state = 'chase';
             this.spawnDamageParticles(c.pos.x + c.width / 2, c.pos.y + c.height / 2, proj.type === 'harpoon_crit');
             this.spawnDamageNumber(c.pos.x + c.width / 2, c.pos.y, proj.damage, proj.type === 'harpoon_crit' ? '#ffdd44' : '#ffffff');
+            // Harpoon impact ripple
+            this.spawnRipple(c.pos.x + c.width / 2, c.pos.y + c.height / 2, proj.type === 'harpoon_crit' ? 45 : 30);
             // Venomous Harpoon poison
             if (this.hasEquippedGear('venomous_harpoon')) {
               c.poisonTimer = 4;
@@ -1270,6 +1308,8 @@ export class Game {
       if (p.type === 'death_chunk') { p.vel.y += 20 * dt; p.vel.x *= 0.98; }
       if (p.type === 'spark') { p.vel.x *= 0.95; p.vel.y *= 0.95; }
       if (p.type === 'shockwave') { /* stationary, size grows via render */ }
+      if (p.type === 'wake') { p.vel.x *= 0.9; p.vel.y *= 0.9; p.size *= 1.02; }
+      if (p.type === 'ripple') { p.size += 40 * dt; }
       return p.lifetime > 0;
     });
   }
@@ -2523,6 +2563,19 @@ export class Game {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(-p.size / 4, -p.size / 4, p.size / 2, p.size / 2);
         ctx.restore();
+      } else if (p.type === 'wake') {
+        // Wake trail — fading horizontal streaks
+        ctx.fillStyle = p.color;
+        ctx.fillRect(sx - p.size * 2, sy - 0.5, p.size * 4, 1);
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.fillRect(sx - p.size * 3, sy - 1, p.size * 6, 2);
+      } else if (p.type === 'ripple') {
+        // Concentric ripple ring
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(sx, sy, p.size, 0, Math.PI * 2);
+        ctx.stroke();
       } else {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
       }
@@ -2560,21 +2613,125 @@ export class Game {
   }
 
   renderWaterDistortion(ctx: CanvasRenderingContext2D) {
-    // Subtle wave lines across screen
-    ctx.globalAlpha = 0.03;
-    ctx.strokeStyle = '#aaddff';
+    const zone = this.state.depthZone;
+    const distortionStrength = 1 + zone * 0.5; // stronger in deeper zones
+
+    // ===== PIXEL-OFFSET DISTORTION =====
+    // Copy current frame to offscreen canvas
+    if (this.distortionCanvas && this.distortionCtx) {
+      this.distortionCtx.drawImage(this.canvas, 0, 0);
+
+      // Apply pixel-row offset distortion
+      const t = this.state.time;
+      for (let y = 0; y < GAME_H; y += 2) {
+        // Sine-based horizontal pixel offset — varies by depth and time
+        const offset = Math.round(
+          Math.sin(t * 0.6 + y * 0.04) * distortionStrength +
+          Math.sin(t * 1.2 + y * 0.08) * distortionStrength * 0.5 +
+          Math.sin(t * 0.3 + y * 0.02) * distortionStrength * 0.3
+        );
+
+        if (offset !== 0) {
+          ctx.drawImage(
+            this.distortionCanvas,
+            0, y, GAME_W, 2,     // source
+            offset, y, GAME_W, 2  // dest (shifted)
+          );
+        }
+      }
+    }
+
+    // ===== WAVE LINES =====
+    ctx.globalAlpha = 0.03 + zone * 0.005;
+    ctx.strokeStyle = zone >= 4 ? '#ff886644' : '#aaddff';
     ctx.lineWidth = 1;
-    for (let y = 0; y < GAME_H; y += 40) {
-      const wave = Math.sin(this.state.time * 0.8 + y * 0.05) * 3;
+    for (let y = 0; y < GAME_H; y += 30) {
+      const wave = Math.sin(this.state.time * 0.8 + y * 0.05) * (2 + zone);
       ctx.beginPath();
       ctx.moveTo(0, y + wave);
-      for (let x = 0; x < GAME_W; x += 20) {
-        const wy = y + Math.sin(this.state.time * 0.6 + x * 0.02 + y * 0.03) * 2;
+      for (let x = 0; x < GAME_W; x += 15) {
+        const wy = y + Math.sin(this.state.time * 0.6 + x * 0.02 + y * 0.03) * (1.5 + zone * 0.5);
         ctx.lineTo(x, wy);
       }
       ctx.stroke();
     }
+
+    // ===== CURRENT STREAKS ===== (visible diagonal pixel streaks showing water flow)
+    ctx.globalAlpha = 0.04;
+    ctx.strokeStyle = zone >= 3 ? '#4444aa' : '#88ccff';
+    ctx.lineWidth = 1;
+    const currentDir = Math.sin(this.state.time * 0.2) > 0 ? 1 : -1;
+    for (let i = 0; i < 8; i++) {
+      const sx = ((i * 120 + this.state.time * 15 * currentDir) % (GAME_W + 100)) - 50;
+      const sy = 50 + i * 50 + Math.sin(this.state.time * 0.5 + i) * 20;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + currentDir * 40, sy + 8);
+      ctx.stroke();
+    }
+
+    // ===== RIPPLES ===== (from impacts and movement)
+    this.renderRipples(ctx);
+
     ctx.globalAlpha = 1;
+  }
+
+  spawnRipple(worldX: number, worldY: number, maxRadius: number, strength = 1) {
+    this.ripples.push({
+      x: worldX, y: worldY,
+      radius: 2, maxRadius,
+      strength, time: 0,
+    });
+    // Limit active ripples
+    if (this.ripples.length > 15) this.ripples.shift();
+  }
+
+  updateRipples(dt: number) {
+    this.ripples = this.ripples.filter(r => {
+      r.time += dt;
+      r.radius += dt * 60; // expand speed
+      return r.radius < r.maxRadius;
+    });
+  }
+
+  renderRipples(ctx: CanvasRenderingContext2D) {
+    const cam = this.state.camera;
+    for (const r of this.ripples) {
+      const sx = r.x - cam.x;
+      const sy = r.y - cam.y;
+      if (sx < -r.maxRadius || sx > GAME_W + r.maxRadius) continue;
+
+      const progress = r.radius / r.maxRadius;
+      const alpha = (1 - progress) * 0.25 * r.strength;
+
+      // Outer ring
+      ctx.strokeStyle = `rgba(150, 220, 255, ${alpha})`;
+      ctx.lineWidth = 2 - progress;
+      ctx.beginPath();
+      // Pixel-art ring: draw as a series of small rects around a circle
+      const steps = Math.floor(r.radius * 2);
+      for (let i = 0; i < steps; i++) {
+        const angle = (i / steps) * Math.PI * 2;
+        const rx = sx + Math.round(Math.cos(angle) * r.radius);
+        const ry = sy + Math.round(Math.sin(angle) * r.radius);
+        ctx.fillStyle = `rgba(150, 220, 255, ${alpha})`;
+        ctx.fillRect(rx, ry, 2, 2);
+      }
+
+      // Inner fainter ring
+      if (r.radius > 8) {
+        const innerR = r.radius * 0.6;
+        const innerAlpha = alpha * 0.4;
+        const innerSteps = Math.floor(innerR * 1.5);
+        for (let i = 0; i < innerSteps; i++) {
+          const angle = (i / innerSteps) * Math.PI * 2;
+          const rx = sx + Math.round(Math.cos(angle) * innerR);
+          const ry = sy + Math.round(Math.sin(angle) * innerR);
+          ctx.fillStyle = `rgba(200, 240, 255, ${innerAlpha})`;
+          ctx.fillRect(rx, ry, 1, 1);
+        }
+      }
+    }
   }
 
   renderVignette(ctx: CanvasRenderingContext2D) {
