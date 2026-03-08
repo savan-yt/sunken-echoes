@@ -32,6 +32,12 @@ export class Game {
   animFrame = 0;
   lastTime = 0;
   running = false;
+  // Screen effects
+  screenShake: { intensity: number; duration: number; timer: number } = { intensity: 0, duration: 0, timer: 0 };
+  damageFlash = 0; // red flash timer
+  helmetCracks = 0; // accumulated crack level 0-5
+  deathSequence = 0; // death animation timer
+  deathActive = false;
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
