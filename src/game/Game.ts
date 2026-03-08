@@ -3673,7 +3673,7 @@ export class Game {
 
   renderBossIntro(ctx: CanvasRenderingContext2D, cam: Vec2) {
     const t = 3.0 - this.bossIntroTimer; // time since intro started
-    const boss = this.state.creatures.find(c => c.id === 'boss_rotjaw');
+    const boss = this.state.creatures.find(c => c.id === this.state.boss.creatureId);
     if (!boss) return;
 
     // Screen dim — spotlight effect
