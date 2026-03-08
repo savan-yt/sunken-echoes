@@ -1721,6 +1721,7 @@ export class Game {
     this.renderCreatures(ctx, cam);
     this.renderCreatureDeathAnims(ctx, cam);
     this.renderBossHPBar(ctx);
+    this.renderNPCs(ctx, cam);
     this.renderPlayer(ctx, cam);
     this.renderProjectiles(ctx, cam);
     this.renderParticles(ctx, cam);
