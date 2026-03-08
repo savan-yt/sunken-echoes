@@ -828,6 +828,7 @@ export class Game {
           p.invincible = 0.5;
           c.attackCooldown = 1;
           this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
+          this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
           if (p.hp <= 0) {
             this.state.gameOver = true;
             this.callbacks.onPlayerDeath();
