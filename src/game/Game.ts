@@ -158,7 +158,39 @@ export class Game {
     return rocks;
   }
 
-  generateAirBubbles(terrain: number[]): AirBubble[] {
+  generateWaterCurrents(terrain: number[]): WaterCurrent[] {
+    const currents: WaterCurrent[] = [];
+    const zoneW = WORLD_W / 5;
+
+    // Zone 0 (The Shallows) — several currents with varied directions
+    const zone0Currents = [
+      // Rightward current near start — helps player move toward middle
+      { x: 150, yOff: -120, dx: 1, dy: 0.1, len: 200, w: 60, str: 80 },
+      // Upward current near coral ridge area
+      { x: 350, yOff: -180, dx: 0.3, dy: -0.95, len: 120, w: 50, str: 70 },
+      // Strong rightward current mid-zone — the main "ride" current
+      { x: 450, yOff: -100, dx: 1, dy: -0.2, len: 250, w: 70, str: 120 },
+      // Downward current near Rotjaw's area — danger zone pull
+      { x: 680, yOff: -150, dx: 0.5, dy: 0.85, len: 100, w: 45, str: 60 },
+    ];
+
+    for (const c of zone0Currents) {
+      const tx = terrain[Math.floor(Math.min(c.x, terrain.length - 1))];
+      const mag = Math.sqrt(c.dx * c.dx + c.dy * c.dy);
+      currents.push({
+        pos: { x: c.x, y: tx + c.yOff },
+        dir: { x: c.dx / mag, y: c.dy / mag },
+        length: c.len,
+        width: c.w,
+        strength: c.str,
+        zone: 0,
+      });
+    }
+
+    return currents;
+  }
+
+
     const bubbles: AirBubble[] = [];
     for (let x = 80; x < WORLD_W - 80; x += 120 + Math.floor(Math.random() * 200)) {
       const ty = terrain[Math.min(x, terrain.length - 1)];
