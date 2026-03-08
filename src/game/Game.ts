@@ -2810,8 +2810,8 @@ export class Game {
   renderBossHPBar(ctx: CanvasRenderingContext2D) {
     const boss = this.state.boss;
     if (!boss.active || boss.defeated) return;
-    const bossCreature = this.state.creatures.find(c => c.id === 'boss_rotjaw');
-    if (!bossCreature || bossCreature.state === 'dead') return;
+    const bossCreature = this.state.creatures.find(c => c.id === this.state.boss.creatureId && c.state !== 'dead');
+    if (!bossCreature) return;
 
     const barW = 300;
     const barH = 8;
