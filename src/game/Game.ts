@@ -348,10 +348,62 @@ export class Game {
     const slot = this.state.player.quickslots[this.state.player.activeQuickslot];
     if (!slot) return;
     if (slot.item.category === 'consumable') {
+      const p = this.state.player;
       if (slot.item.id === 'oxygen_canister') {
-        this.state.player.oxygen = Math.min(this.state.player.maxOxygen, this.state.player.oxygen + 30);
+        p.oxygen = Math.min(p.maxOxygen, p.oxygen + 30);
       } else if (slot.item.id === 'antitoxin') {
-        this.state.player.hp = Math.min(this.state.player.maxHp, this.state.player.hp + 20);
+        p.hp = Math.min(p.maxHp, p.hp + 20);
+      } else if (slot.item.id === 'medkit') {
+        p.hp = Math.min(p.maxHp, p.hp + 40);
+        this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, 40, '#44ff44');
+      } else if (slot.item.id === 'ink_bomb') {
+        // Blind nearby enemies briefly (3s)
+        for (const c of this.state.creatures) {
+          if (c.state === 'dead') continue;
+          const dx = c.pos.x - p.pos.x; const dy = c.pos.y - p.pos.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 120) {
+            c.state = 'patrol';
+            c.attackCooldown = 3;
+          }
+        }
+        this.triggerScreenShake(2, 0.2);
+      } else if (slot.item.id === 'ink_smoke') {
+        // Large area blind — enemies lose tracking for 5s
+        this.inkSmokeTimer = 5;
+        for (const c of this.state.creatures) {
+          if (c.state === 'dead') continue;
+          const dx = c.pos.x - p.pos.x; const dy = c.pos.y - p.pos.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 200) {
+            c.state = 'patrol';
+            c.attackCooldown = 5;
+          }
+        }
+        // Ink cloud particles
+        for (let i = 0; i < 20; i++) {
+          this.state.particles.push({
+            pos: { x: p.pos.x + p.width / 2 + (Math.random() - 0.5) * 40, y: p.pos.y + p.height / 2 + (Math.random() - 0.5) * 40 },
+            vel: { x: (Math.random() - 0.5) * 30, y: (Math.random() - 0.5) * 30 },
+            lifetime: 3, maxLifetime: 3, size: 6 + Math.random() * 8, color: '#1a0a2e', type: 'corruption',
+          });
+        }
+      } else if (slot.item.id === 'bio_stim') {
+        // Already handled by shoot cooldown check — simple speed boost via timer not yet needed
+        // For now: brief attack speed boost via reducing cooldown
+        p.shootCooldown = 0;
+      } else if (slot.item.id === 'corrupted_elixir') {
+        // +50% damage for 8s, costs 15 HP
+        this.corruptedElixirTimer = 8;
+        p.hp = Math.max(1, p.hp - 15);
+        this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, 15, '#cc44ff');
+        this.damageFlash = 0.15;
+        // Purple power aura
+        for (let i = 0; i < 12; i++) {
+          this.state.particles.push({
+            pos: { x: p.pos.x + p.width / 2, y: p.pos.y + p.height / 2 },
+            vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+            lifetime: 0.8, maxLifetime: 0.8, size: 3 + Math.random() * 3, color: '#cc44ff', type: 'corruption',
+          });
+        }
       }
       slot.count--;
       if (slot.count <= 0) this.state.player.quickslots[this.state.player.activeQuickslot] = null;
