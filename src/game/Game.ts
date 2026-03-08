@@ -500,10 +500,29 @@ export class Game {
 
     p.vel.x += ax * dt;
     p.vel.y += (ay + GRAVITY) * dt;
+
+    // Apply water current forces
+    for (const current of this.state.waterCurrents) {
+      const cx = p.pos.x + p.width / 2 - current.pos.x;
+      const cy = p.pos.y + p.height / 2 - current.pos.y;
+      // Project player position onto current direction
+      const along = cx * current.dir.x + cy * current.dir.y;
+      const perpX = cx - along * current.dir.x;
+      const perpY = cy - along * current.dir.y;
+      const perpDist = Math.sqrt(perpX * perpX + perpY * perpY);
+      // Check if player is within current bounds
+      if (along >= 0 && along <= current.length && perpDist < current.width / 2) {
+        const falloff = 1 - (perpDist / (current.width / 2));
+        const force = current.strength * falloff;
+        p.vel.x += current.dir.x * force * dt;
+        p.vel.y += current.dir.y * force * dt;
+      }
+    }
+
     p.vel.x *= 1 - WATER_DRAG * dt;
     p.vel.y *= 1 - WATER_DRAG * dt;
 
-    const maxSpeed = SWIM_SPEED * speedMult;
+    const maxSpeed = SWIM_SPEED * speedMult * 1.8; // Allow higher speed when riding currents
     const speed = Math.sqrt(p.vel.x ** 2 + p.vel.y ** 2);
     if (speed > maxSpeed) {
       p.vel.x = (p.vel.x / speed) * maxSpeed;
