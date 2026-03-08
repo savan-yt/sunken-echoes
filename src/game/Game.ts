@@ -172,8 +172,8 @@ export class Game {
       const zoneKeys = ZONE_CREATURES[zone] || [];
       if (zoneKeys.length === 0) continue;
 
-      const zoneMinY = zone * (WORLD_H / 5);
-      const zoneMaxY = (zone + 1) * (WORLD_H / 5);
+      const zoneMinX = zone * (WORLD_W / 5);
+      const zoneMaxX = (zone + 1) * (WORLD_W / 5);
       const count = zone <= 2 ? 10 : 6;
 
       for (let i = 0; i < count; i++) {
@@ -181,11 +181,9 @@ export class Game {
         const tmpl = CREATURE_TEMPLATES[key as keyof typeof CREATURE_TEMPLATES];
         if (!tmpl) continue;
 
-        const x = 100 + Math.random() * (WORLD_W - 200);
-        const minY = Math.max(zoneMinY + 30, 30);
-        const maxY = Math.min(zoneMaxY - 30, WORLD_H - 50);
+        const x = zoneMinX + 50 + Math.random() * (zoneMaxX - zoneMinX - 100);
         const tx = terrain[Math.floor(Math.min(x, terrain.length - 1))];
-        const y = Math.min(tx - 40, minY + Math.random() * (maxY - minY));
+        const y = tx - 40 - Math.random() * 200;
 
         creatures.push({
           id: `c_${id++}`,
