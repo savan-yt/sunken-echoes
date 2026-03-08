@@ -165,70 +165,95 @@ export class Game {
 
   spawnCreatures(terrain: number[]): Creature[] {
     const creatures: Creature[] = [];
-    const templates = Object.values(CREATURE_TEMPLATES);
-    for (let i = 0; i < 30; i++) {
-      const tmpl = templates[Math.floor(Math.random() * templates.length)];
-      const x = 200 + Math.random() * (WORLD_W - 400);
-      const tx = terrain[Math.floor(Math.min(x, terrain.length - 1))];
-      const y = tx - 40 - Math.random() * 200;
-      creatures.push({
-        id: `c_${i}`,
-        ...tmpl,
-        pos: { x, y },
-        vel: { x: 0, y: 0 },
-        facing: Math.random() > 0.5 ? 1 : -1,
-        state: 'patrol',
-        attackCooldown: 0,
-        patrolOrigin: { x, y },
-        deathTimer: 0,
-        rangedCooldown: 0,
-        maxHp: tmpl.hp,
-        animFrame: 0,
-        animTimer: 0,
-        corruptionPulse: Math.random() * Math.PI * 2,
-        xpValue: tmpl.xpValue,
-        poisonTimer: 0,
-        poisonDamage: 0,
-      });
+    let id = 0;
+
+    // Zone-based creature spawning
+    for (let zone = 0; zone <= 4; zone++) {
+      const zoneKeys = ZONE_CREATURES[zone] || [];
+      if (zoneKeys.length === 0) continue;
+
+      const zoneMinY = zone * (WORLD_H / 5);
+      const zoneMaxY = (zone + 1) * (WORLD_H / 5);
+      const count = zone <= 2 ? 10 : 6;
+
+      for (let i = 0; i < count; i++) {
+        const key = zoneKeys[Math.floor(Math.random() * zoneKeys.length)];
+        const tmpl = CREATURE_TEMPLATES[key as keyof typeof CREATURE_TEMPLATES];
+        if (!tmpl) continue;
+
+        const x = 100 + Math.random() * (WORLD_W - 200);
+        const minY = Math.max(zoneMinY + 30, 30);
+        const maxY = Math.min(zoneMaxY - 30, WORLD_H - 50);
+        const tx = terrain[Math.floor(Math.min(x, terrain.length - 1))];
+        const y = Math.min(tx - 40, minY + Math.random() * (maxY - minY));
+
+        creatures.push({
+          id: `c_${id++}`,
+          name: tmpl.name,
+          hp: tmpl.hp, maxHp: tmpl.hp,
+          damage: tmpl.damage, speed: tmpl.speed,
+          behavior: tmpl.behavior,
+          attackRange: tmpl.attackRange,
+          patrolRange: tmpl.patrolRange,
+          width: tmpl.width, height: tmpl.height,
+          spriteType: tmpl.spriteType,
+          xpValue: tmpl.xpValue,
+          lootTable: tmpl.lootTable,
+          rangedAttack: (tmpl as any).rangedAttack,
+          pos: { x, y },
+          vel: { x: 0, y: 0 },
+          facing: Math.random() > 0.5 ? 1 : -1,
+          state: 'patrol',
+          attackCooldown: 0,
+          patrolOrigin: { x, y },
+          deathTimer: 0,
+          rangedCooldown: 0,
+          animFrame: 0, animTimer: 0,
+          corruptionPulse: Math.random() * Math.PI * 2,
+          poisonTimer: 0, poisonDamage: 0,
+        });
+      }
     }
 
-    // Spawn Rotjaw boss at x=1800 (end of zone 1)
+    // Spawn bosses at zone boundaries
     const bossX = 1800;
     const bossTx = terrain[Math.floor(bossX)];
-    const bossY = bossTx - 80;
-    const bossTmpl = BOSS_TEMPLATES.rotjaw;
-    const bossId = 'boss_rotjaw';
-    creatures.push({
-      id: bossId,
-      name: bossTmpl.name,
-      hp: bossTmpl.hp,
-      maxHp: bossTmpl.hp,
-      damage: bossTmpl.damage,
-      speed: bossTmpl.speed,
-      behavior: bossTmpl.behavior,
-      attackRange: bossTmpl.attackRange,
-      patrolRange: bossTmpl.patrolRange,
-      width: bossTmpl.width,
-      height: bossTmpl.height,
-      spriteType: bossTmpl.spriteType,
-      xpValue: bossTmpl.xpValue,
-      lootTable: bossTmpl.lootTable,
-      pos: { x: bossX, y: bossY },
-      vel: { x: 0, y: 0 },
-      facing: -1,
-      state: 'patrol',
-      attackCooldown: 0,
-      patrolOrigin: { x: bossX, y: bossY },
-      deathTimer: 0,
-      rangedCooldown: 0,
-      animFrame: 0,
-      animTimer: 0,
-      corruptionPulse: 0,
-      poisonTimer: 0,
-      poisonDamage: 0,
-    });
+    creatures.push(this.createBossCreature('boss_rotjaw', BOSS_TEMPLATES.rotjaw, bossX, bossTx - 80));
+
+    const tangleX = 2600;
+    const tangleTx = terrain[Math.floor(Math.min(tangleX, terrain.length - 1))];
+    creatures.push(this.createBossCreature('boss_tangle', BOSS_TEMPLATES.the_tangle, tangleX, Math.min(tangleTx - 100, WORLD_H * 0.45)));
+
+    const zeroX = 3200;
+    const zeroTx = terrain[Math.floor(Math.min(zeroX, terrain.length - 1))];
+    creatures.push(this.createBossCreature('boss_subject_zero', BOSS_TEMPLATES.subject_zero, zeroX, Math.min(zeroTx - 80, WORLD_H * 0.7)));
 
     return creatures;
+  }
+
+  createBossCreature(bossId: string, tmpl: typeof BOSS_TEMPLATES.rotjaw, x: number, y: number): Creature {
+    return {
+      id: bossId,
+      name: tmpl.name,
+      hp: tmpl.hp, maxHp: tmpl.hp,
+      damage: tmpl.damage, speed: tmpl.speed,
+      behavior: tmpl.behavior,
+      attackRange: tmpl.attackRange,
+      patrolRange: tmpl.patrolRange,
+      width: tmpl.width, height: tmpl.height,
+      spriteType: tmpl.spriteType,
+      xpValue: tmpl.xpValue,
+      lootTable: tmpl.lootTable,
+      pos: { x, y },
+      vel: { x: 0, y: 0 },
+      facing: -1, state: 'patrol',
+      attackCooldown: 0,
+      patrolOrigin: { x, y },
+      deathTimer: 0, rangedCooldown: 0,
+      animFrame: 0, animTimer: 0,
+      corruptionPulse: 0,
+      poisonTimer: 0, poisonDamage: 0,
+    };
   }
 
   bindInput() {
