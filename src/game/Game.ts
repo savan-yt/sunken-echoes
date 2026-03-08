@@ -361,7 +361,7 @@ export class Game {
     this.updateParticles(dt);
     this.updateCamera();
     this.spawnAmbientParticles(dt);
-    this.state.depthZone = Math.min(4, Math.floor(this.state.player.pos.y / (WORLD_H / 5)));
+    this.state.depthZone = Math.min(4, Math.floor(this.state.player.pos.x / (WORLD_W / 5)));
 
     // Zone transition detection
     if (this.state.depthZone !== oldZone) {
