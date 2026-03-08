@@ -213,18 +213,18 @@ export class Game {
       }
     }
 
-    // Spawn bosses at zone boundaries
-    const bossX = 1800;
-    const bossTx = terrain[Math.floor(bossX)];
+    // Spawn bosses at zone boundaries (end of each zone's X range)
+    const bossX = WORLD_W / 5 * 1 - 100; // end of zone 0
+    const bossTx = terrain[Math.floor(Math.min(bossX, terrain.length - 1))];
     creatures.push(this.createBossCreature('boss_rotjaw', BOSS_TEMPLATES.rotjaw, bossX, bossTx - 80));
 
-    const tangleX = 2600;
+    const tangleX = WORLD_W / 5 * 2 - 100; // end of zone 1
     const tangleTx = terrain[Math.floor(Math.min(tangleX, terrain.length - 1))];
-    creatures.push(this.createBossCreature('boss_tangle', BOSS_TEMPLATES.the_tangle, tangleX, Math.min(tangleTx - 100, WORLD_H * 0.45)));
+    creatures.push(this.createBossCreature('boss_tangle', BOSS_TEMPLATES.the_tangle, tangleX, tangleTx - 100));
 
-    const zeroX = 3200;
+    const zeroX = WORLD_W / 5 * 3 - 100; // end of zone 2
     const zeroTx = terrain[Math.floor(Math.min(zeroX, terrain.length - 1))];
-    creatures.push(this.createBossCreature('boss_subject_zero', BOSS_TEMPLATES.subject_zero, zeroX, Math.min(zeroTx - 80, WORLD_H * 0.7)));
+    creatures.push(this.createBossCreature('boss_subject_zero', BOSS_TEMPLATES.subject_zero, zeroX, zeroTx - 80));
 
     return creatures;
   }
