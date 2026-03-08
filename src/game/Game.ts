@@ -1793,11 +1793,25 @@ export class Game {
       ctx.fillStyle = auraColor;
       ctx.fillRect(-c.width / 2 - 3, -c.height / 2 - 3, c.width + 6, c.height + 6);
 
-      this.drawCreatureSprite(ctx, c);
+      // Hit stagger — brief pause visual
+      if (c.hp < c.maxHp && c.hp > 0) {
+        const dmgPct = 1 - c.hp / c.maxHp;
+        // Corruption cracks on body — expand with damage
+        if (dmgPct > 0.3) {
+          const crackAlpha = Math.min(0.8, dmgPct);
+          ctx.fillStyle = `rgba(255, 60, 40, ${crackAlpha * 0.4})`;
+          const crackCount = Math.floor(dmgPct * 5);
+          for (let i = 0; i < crackCount; i++) {
+            const cx2 = -c.width / 2 + ((i * 7 + 3) % c.width);
+            ctx.fillRect(cx2, -c.height / 2 + 2, 1, c.height - 4);
+          }
+        }
+      }
 
+      this.drawCreatureSprite(ctx, c);
       ctx.restore();
 
-      // HP bar (improved)
+      // HP bar
       if (c.hp < c.maxHp) {
         const barW = c.width + 4;
         const hpPct = c.hp / c.maxHp;
