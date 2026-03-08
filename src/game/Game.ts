@@ -357,7 +357,8 @@ export class Game {
     if (this.bossIntroActive) {
       this.bossIntroTimer -= dt;
       this.updateCamera();
-      this.updateParticles(dt);
+    this.updateNPCs(dt);
+    this.updateParticles(dt);
       if (this.bossIntroTimer <= 0) {
         this.bossIntroActive = false;
       }
