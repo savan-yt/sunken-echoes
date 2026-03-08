@@ -58,6 +58,12 @@ export class Game {
     canvas.width = GAME_W;
     canvas.height = GAME_H;
 
+    // Offscreen canvas for water distortion
+    this.distortionCanvas = document.createElement('canvas');
+    this.distortionCanvas.width = GAME_W;
+    this.distortionCanvas.height = GAME_H;
+    this.distortionCtx = this.distortionCanvas.getContext('2d')!;
+
     this.state = this.createInitialState();
     this.bindInput();
   }
