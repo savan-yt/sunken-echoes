@@ -2091,13 +2091,13 @@ export class Game {
   renderHelmetLight(ctx: CanvasRenderingContext2D, cam: Vec2) {
     const p = this.state.player;
     const zone = this.state.depthZone;
-    if (zone < 2) return; // Only show in darker zones
+    if (zone < 1) return;
 
     const sx = p.pos.x - cam.x + p.width / 2;
     const sy = p.pos.y - cam.y + p.height / 2 - 8;
     const dir = p.facing;
-    const intensity = Math.min(1, (zone - 1) * 0.35);
-    const flicker = 0.9 + Math.sin(this.state.time * 7) * 0.1;
+    const intensity = Math.min(1, zone * 0.3);
+    const flicker = 0.9 + Math.sin(this.state.time * 7) * 0.07 + Math.sin(this.state.time * 13) * 0.03;
 
     // Light cone
     ctx.save();
