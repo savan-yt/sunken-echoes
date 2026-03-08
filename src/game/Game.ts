@@ -349,6 +349,26 @@ export class Game {
     }
 
     if (this.zoneTransitionTimer > 0) this.zoneTransitionTimer -= dt;
+    this.updateRipples(dt);
+
+    // Player wake ripples when moving
+    const p = this.state.player;
+    const speed = Math.sqrt(p.vel.x ** 2 + p.vel.y ** 2);
+    if (speed > 30 && Math.random() < speed * 0.003) {
+      this.spawnRipple(
+        p.pos.x + p.width / 2 - p.facing * 8,
+        p.pos.y + p.height / 2,
+        12 + speed * 0.15,
+        0.5
+      );
+      // Wake trail particles
+      this.state.particles.push({
+        pos: { x: p.pos.x + p.width / 2 - p.facing * 6, y: p.pos.y + p.height / 2 },
+        vel: { x: -p.vel.x * 0.15, y: -p.vel.y * 0.1 },
+        lifetime: 0.6, maxLifetime: 0.6, size: 1.5,
+        color: 'rgba(150, 220, 255, 0.2)', type: 'wake',
+      });
+    }
 
     this.callbacks.onStateUpdate({ ...this.state });
   }
