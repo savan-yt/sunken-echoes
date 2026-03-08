@@ -672,6 +672,9 @@ export class Game {
         p.vel.y += boss.chargeDir.y * 80;
         this.spawnDamageParticles(p.pos.x, p.pos.y, false);
         this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, finalChargeDmg, '#ff4444');
+        this.triggerScreenShake(6, 0.3);
+        this.damageFlash = 0.2;
+        this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
       }
 
       if (boss.chargeTimer <= 0) {
