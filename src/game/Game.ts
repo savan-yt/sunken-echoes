@@ -3720,18 +3720,21 @@ export class Game {
       ctx.globalAlpha = nameAlpha;
 
       // Boss name
-      ctx.fillStyle = '#ff4422';
+      const bossColors: Record<string, string> = { rotjaw: '#ff4422', tangle: '#44ff88', subject_zero: '#ff8844' };
+      const bossSubtitles: Record<string, string> = { rotjaw: 'Guardian of the Shallows', tangle: 'Terror of the Kelp', subject_zero: 'The First Experiment' };
+      const sprType = boss?.spriteType || 'rotjaw';
+      ctx.fillStyle = bossColors[sprType] || '#ff4422';
       ctx.font = '10px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.shadowColor = '#ff0000';
+      ctx.shadowColor = bossColors[sprType] || '#ff0000';
       ctx.shadowBlur = 8;
-      ctx.fillText('⚠ ROTJAW, THE CORRUPTED ⚠', GAME_W / 2, GAME_H / 2 - 30);
+      ctx.fillText(`⚠ ${(boss?.name || 'BOSS').toUpperCase()} ⚠`, GAME_W / 2, GAME_H / 2 - 30);
 
       // Subtitle
       ctx.fillStyle = '#aa6644';
       ctx.font = '6px "Press Start 2P", monospace';
       ctx.shadowBlur = 4;
-      ctx.fillText('Guardian of the Deep', GAME_W / 2, GAME_H / 2 - 15);
+      ctx.fillText(bossSubtitles[sprType] || 'Boss', GAME_W / 2, GAME_H / 2 - 15);
 
       // HP bar slides in
       if (t > 1.3) {
