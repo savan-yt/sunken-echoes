@@ -725,6 +725,69 @@ export class Game {
         this.triggerScreenShake(4, 0.4);
         break;
       }
+      case 'tangle': {
+        // Tangle: tentacles fly apart, ink explosion
+        c.deathTimer = 5;
+        // Tentacle fragments flying in all directions
+        for (let i = 0; i < 24; i++) {
+          const angle = (i / 24) * Math.PI * 2;
+          const speed = 20 + Math.random() * 60;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 3, maxLifetime: 3, size: 4 + Math.random() * 5,
+            color: i % 3 === 0 ? '#443350' : i % 3 === 1 ? '#66ff88' : '#221133',
+            type: 'death_chunk', rotation: Math.random() * Math.PI * 2, rotationSpeed: (Math.random() - 0.5) * 6,
+          });
+        }
+        // Massive ink cloud
+        for (let i = 0; i < 20; i++) {
+          this.state.particles.push({
+            pos: { x: cx + (Math.random() - 0.5) * c.width, y: cy + (Math.random() - 0.5) * c.height },
+            vel: { x: (Math.random() - 0.5) * 30, y: (Math.random() - 0.5) * 30 },
+            lifetime: 4, maxLifetime: 4, size: 6 + Math.random() * 4,
+            color: '#110822', type: 'corruption',
+          });
+        }
+        // Green bio-luminescent sparks from severed tentacles
+        for (let i = 0; i < 15; i++) {
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+            lifetime: 1.5, maxLifetime: 1.5, size: 2 + Math.random(),
+            color: '#88ff66', type: 'spark',
+          });
+        }
+        this.triggerScreenShake(6, 0.5);
+        break;
+      }
+      case 'subject_zero': {
+        // Subject Zero: glitch death — rapid flashing, erratic particles
+        c.deathTimer = 5;
+        for (let i = 0; i < 20; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 40 + Math.random() * 60;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 2 + Math.random(), maxLifetime: 3, size: 3 + Math.random() * 3,
+            color: Math.random() > 0.5 ? '#ff6644' : '#443344',
+            type: 'death_chunk', rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 10,
+          });
+        }
+        // Core explosion sparks
+        for (let i = 0; i < 12; i++) {
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: (Math.random() - 0.5) * 100, y: (Math.random() - 0.5) * 100 },
+            lifetime: 1, maxLifetime: 1, size: 2,
+            color: '#ff8844', type: 'spark',
+          });
+        }
+        this.triggerScreenShake(8, 0.5);
+        this.damageFlash = 0.15;
+        break;
+      }
       case 'jelly': {
         // Jellyfish: burst into electric sparks
         c.deathTimer = 1.5;
