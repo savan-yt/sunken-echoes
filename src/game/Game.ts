@@ -470,7 +470,7 @@ export class Game {
         const p = this.state.player;
         if (p.invincible <= 0 && this.aabb(proj, p)) {
           const defense = this.getStatBonus('defense');
-          const dmg = Math.max(1, proj.damage - defense);
+          const dmg = Math.max(1, Math.floor((proj.damage - defense) * (1 - this.getGearDamageReduction())));
           p.hp -= dmg;
           p.invincible = 0.5;
           this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
