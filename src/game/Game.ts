@@ -2205,6 +2205,212 @@ export class Game {
     }
   }
 
+  renderCorruptionTendrils(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    const zone = this.state.depthZone;
+    if (zone < 3) return;
+    const p = this.state.player;
+    const px = p.pos.x - cam.x + p.width / 2;
+    const py = p.pos.y - cam.y + p.height / 2;
+
+    // Corruption on terrain surface reaching toward player
+    const startX = Math.floor(cam.x);
+    const endX = Math.min(startX + GAME_W + 1, this.state.terrain.length);
+    const intensity = zone >= 4 ? 0.35 : 0.15;
+
+    for (let x = startX; x < endX; x += 6) {
+      const ty = this.state.terrain[x] - cam.y;
+      const sx = x - cam.x;
+      const distToPlayer = Math.sqrt((sx - px) ** 2 + (ty - py) ** 2);
+      
+      if (distToPlayer < 120) {
+        // Tendrils reach toward player
+        const reach = Math.max(0, (120 - distToPlayer) / 120) * 12;
+        const dirY = py < ty ? -1 : 0.3;
+        const wave = Math.sin(this.state.time * 2 + x * 0.1) * 2;
+        
+        const corruptR = zone >= 4 ? 180 : 100;
+        const corruptG = zone >= 4 ? 30 : 20;
+        ctx.fillStyle = `rgba(${corruptR}, ${corruptG}, ${corruptG}, ${intensity + Math.sin(this.state.time * 3 + x) * 0.05})`;
+        for (let i = 0; i < reach; i += 2) {
+          ctx.fillRect(sx + wave * (i / reach), ty + dirY * i, 2, 2);
+        }
+      }
+      
+      // Static corruption veins on surface
+      if ((x * 7 + 13) % 19 < 5) {
+        const veinLen = 4 + Math.sin(x * 0.3) * 3;
+        const pulse = Math.sin(this.state.time * 1.5 + x * 0.05) * 0.1;
+        ctx.fillStyle = `rgba(${zone >= 4 ? 200 : 120}, 20, 30, ${0.2 + pulse})`;
+        ctx.fillRect(sx, ty - veinLen, 1, veinLen);
+      }
+    }
+  }
+
+  renderDarknessOverlay(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    const zone = this.state.depthZone;
+    if (zone < 2) return;
+
+    // Progressive darkness based on zone
+    const darkness = zone === 2 ? 0.08 : zone === 3 ? 0.25 : zone >= 4 ? 0.4 : 0;
+    
+    // Create a darkness layer with cutout for helmet light
+    ctx.save();
+    ctx.fillStyle = `rgba(0, 0, 8, ${darkness})`;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+    // Cut out area around player with helmet light
+    const p = this.state.player;
+    const px = p.pos.x - cam.x + p.width / 2;
+    const py = p.pos.y - cam.y + p.height / 2 - 6;
+    const lightRadius = zone >= 4 ? 60 : zone === 3 ? 80 : 120;
+    const flicker = 0.95 + Math.sin(this.state.time * 7 + Math.random() * 0.5) * 0.05;
+    
+    // Subtract light from darkness with radial gradient
+    ctx.globalCompositeOperation = 'destination-out';
+    const lightGrad = ctx.createRadialGradient(px, py, 0, px, py, lightRadius * flicker);
+    lightGrad.addColorStop(0, `rgba(0,0,0,${0.6 * darkness})`);
+    lightGrad.addColorStop(0.5, `rgba(0,0,0,${0.3 * darkness})`);
+    lightGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = lightGrad;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+
+    // Bioluminescent creature glow — illuminate around creatures
+    for (const c of this.state.creatures) {
+      if (c.state === 'dead') continue;
+      const cx = c.pos.x - cam.x + c.width / 2;
+      const cy = c.pos.y - cam.y + c.height / 2;
+      if (cx < -50 || cx > GAME_W + 50) continue;
+
+      const glowColor = c.spriteType === 'jelly' ? '120, 100, 255' :
+        c.spriteType === 'eel' ? '100, 255, 100' :
+        c.spriteType === 'shark' || c.spriteType === 'rotjaw' ? '255, 40, 40' :
+        '255, 180, 50';
+      const glowRadius = c.spriteType === 'rotjaw' ? 50 : 25;
+      const glowPulse = 0.08 + Math.sin(c.corruptionPulse) * 0.03;
+      
+      const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
+      cGrad.addColorStop(0, `rgba(${glowColor}, ${glowPulse})`);
+      cGrad.addColorStop(1, `rgba(${glowColor}, 0)`);
+      ctx.fillStyle = cGrad;
+      ctx.fillRect(cx - glowRadius, cy - glowRadius, glowRadius * 2, glowRadius * 2);
+    }
+  }
+
+  renderDamageVignette(ctx: CanvasRenderingContext2D) {
+    // Red flash on damage
+    if (this.damageFlash > 0) {
+      const alpha = this.damageFlash * 1.5;
+      ctx.fillStyle = `rgba(180, 20, 20, ${Math.min(0.3, alpha)})`;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+    }
+
+    // Critical HP red pulse
+    const p = this.state.player;
+    const hpPct = p.hp / p.maxHp;
+    if (hpPct < 0.25 && hpPct > 0) {
+      const pulse = Math.sin(this.state.time * 4) * 0.08 + 0.1;
+      const grad = ctx.createRadialGradient(GAME_W / 2, GAME_H / 2, GAME_H * 0.3, GAME_W / 2, GAME_H / 2, GAME_H * 0.7);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, `rgba(120, 10, 10, ${pulse})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+    }
+  }
+
+  renderHelmetCracks(ctx: CanvasRenderingContext2D) {
+    if (this.helmetCracks <= 0) return;
+    ctx.strokeStyle = `rgba(200, 200, 220, ${0.15 + this.helmetCracks * 0.06})`;
+    ctx.lineWidth = 1;
+
+    // Predefined crack patterns
+    const cracks = [
+      [[50, 0], [70, 30], [65, 60]],
+      [[GAME_W - 30, 0], [GAME_W - 50, 40], [GAME_W - 45, 80]],
+      [[0, GAME_H * 0.3], [30, GAME_H * 0.35], [50, GAME_H * 0.5]],
+      [[GAME_W, GAME_H * 0.6], [GAME_W - 40, GAME_H * 0.55], [GAME_W - 60, GAME_H * 0.7]],
+      [[GAME_W * 0.3, 0], [GAME_W * 0.35, 25], [GAME_W * 0.28, 50], [GAME_W * 0.32, 80]],
+    ];
+
+    for (let i = 0; i < Math.min(this.helmetCracks, cracks.length); i++) {
+      ctx.beginPath();
+      ctx.moveTo(cracks[i][0][0], cracks[i][0][1]);
+      for (let j = 1; j < cracks[i].length; j++) {
+        ctx.lineTo(cracks[i][j][0], cracks[i][j][1]);
+      }
+      ctx.stroke();
+      // Small branches off main crack
+      if (cracks[i].length > 1) {
+        const mid = cracks[i][1];
+        ctx.beginPath();
+        ctx.moveTo(mid[0], mid[1]);
+        ctx.lineTo(mid[0] + 10, mid[1] + 15);
+        ctx.stroke();
+      }
+    }
+  }
+
+  renderPressureEffect(ctx: CanvasRenderingContext2D) {
+    const zone = this.state.depthZone;
+    if (zone < 3) return;
+
+    // Viewport compression pulse in deep zones
+    const pulseStr = zone >= 4 ? 0.015 : 0.008;
+    const pulse = Math.sin(this.state.time * 0.8) * pulseStr;
+    
+    // Dark bars pulsing at edges to simulate pressure
+    const barW = Math.max(0, pulse * GAME_W);
+    const barH = Math.max(0, pulse * GAME_H);
+    if (barW > 0 || barH > 0) {
+      ctx.fillStyle = `rgba(0, 0, 5, ${0.3 + pulse * 10})`;
+      ctx.fillRect(0, 0, barW, GAME_H); // left
+      ctx.fillRect(GAME_W - barW, 0, barW, GAME_H); // right
+      ctx.fillRect(0, 0, GAME_W, barH); // top
+      ctx.fillRect(0, GAME_H - barH, GAME_W, barH); // bottom
+    }
+
+    // Pressure bubbles on player suit in zone 4+
+    if (zone >= 4 && Math.random() < 0.02) {
+      const p = this.state.player;
+      this.state.particles.push({
+        pos: { x: p.pos.x + (Math.random() - 0.5) * p.width, y: p.pos.y + (Math.random() - 0.5) * p.height },
+        vel: { x: (Math.random() - 0.5) * 8, y: -5 - Math.random() * 5 },
+        lifetime: 0.4, maxLifetime: 0.4, size: 1,
+        color: 'rgba(150, 200, 255, 0.5)', type: 'bubble',
+      });
+    }
+  }
+
+  renderDeathOverlay(ctx: CanvasRenderingContext2D) {
+    const t = this.deathSequence;
+    
+    // Slow fade to black from edges
+    if (t > 0.5) {
+      const fadeAlpha = Math.min(0.9, (t - 0.5) * 0.2);
+      const grad = ctx.createRadialGradient(GAME_W / 2, GAME_H / 2, GAME_H * Math.max(0.05, 0.4 - t * 0.05), GAME_W / 2, GAME_H / 2, GAME_H * 0.6);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, `rgba(0,0,0,${fadeAlpha})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+    }
+
+    // Death text
+    if (t > 2.5) {
+      const textAlpha = Math.min(1, (t - 2.5) * 0.5);
+      ctx.globalAlpha = textAlpha;
+      ctx.fillStyle = '#667788';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      const depth = Math.floor(this.state.player.pos.y * 0.3);
+      ctx.fillText(`Depth: ${depth}m`, GAME_W / 2, GAME_H / 2 - 10);
+      ctx.fillStyle = '#445566';
+      ctx.font = '6px "Press Start 2P", monospace';
+      ctx.fillText('The ocean remembers nothing', GAME_W / 2, GAME_H / 2 + 10);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // Public methods for UI
   moveInventoryToQuickslot(invIndex: number, qsIndex: number) {
     const p = this.state.player;
