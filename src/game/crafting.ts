@@ -173,6 +173,61 @@ export const RECIPES: CraftingRecipe[] = [
     ],
     category: 'gear',
   },
+  // Tangle boss loot recipes
+  {
+    id: 'tentacle_whip', name: 'Tentacle Whip', icon: '🐙',
+    description: 'Forge a living weapon from Tangle tentacles.',
+    result: { itemId: 'tentacle_whip', count: 1 },
+    ingredients: [
+      { itemId: 'tangle_tentacle', count: 3 },
+      { itemId: 'scrap_metal', count: 4 },
+      { itemId: 'bio_cell', count: 1 },
+    ],
+    category: 'weapon',
+  },
+  {
+    id: 'ink_cloak', name: 'Ink Cloak', icon: '🖤',
+    description: 'Weave ink sacs into a stealth cloak.',
+    result: { itemId: 'ink_cloak', count: 1 },
+    ingredients: [
+      { itemId: 'ink_sac', count: 4 },
+      { itemId: 'tangle_tentacle', count: 1 },
+      { itemId: 'rotted_skin', count: 3 },
+    ],
+    category: 'gear',
+  },
+  {
+    id: 'tangle_shield', name: 'Tangle Shield', icon: '🛡️',
+    description: 'Shape tentacles into living armor.',
+    result: { itemId: 'tangle_shield', count: 1 },
+    ingredients: [
+      { itemId: 'tangle_tentacle', count: 2 },
+      { itemId: 'bone_shards', count: 6 },
+      { itemId: 'ink_sac', count: 2 },
+    ],
+    category: 'gear',
+  },
+  {
+    id: 'ink_smoke', name: 'Ink Smoke', icon: '🌑',
+    description: 'Concentrate ink into a dense smoke bomb.',
+    result: { itemId: 'ink_smoke', count: 2 },
+    ingredients: [
+      { itemId: 'ink_sac', count: 3 },
+      { itemId: 'kelp_fiber', count: 2 },
+    ],
+    category: 'consumable',
+  },
+  {
+    id: 'corrupted_elixir', name: 'Corrupted Elixir', icon: '💜',
+    description: 'Distill a corrupted heart into raw power.',
+    result: { itemId: 'corrupted_elixir', count: 1 },
+    ingredients: [
+      { itemId: 'corrupted_heart', count: 1 },
+      { itemId: 'ink_sac', count: 2 },
+      { itemId: 'toxic_gland', count: 1 },
+    ],
+    category: 'consumable',
+  },
 ];
 
 export function canCraft(recipe: CraftingRecipe, inventory: ({ item: ItemDef; count: number } | null)[]): boolean {
