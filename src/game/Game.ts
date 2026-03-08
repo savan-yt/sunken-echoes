@@ -2184,10 +2184,420 @@ export class Game {
         }
         break;
       }
+
+      case 'clownfish': {
+        // Small fast clownfish — orange/white striped
+        ctx.fillStyle = '#ee7733';
+        ctx.fillRect(-w, -h + bob, w * 2 - 2, h * 2);
+        // White stripes
+        ctx.fillStyle = '#ffddbb';
+        ctx.fillRect(-w + 3, -h + bob, 3, h * 2);
+        ctx.fillRect(w - 6, -h + bob, 3, h * 2);
+        // Dorsal fin
+        ctx.fillStyle = '#cc5522';
+        ctx.fillRect(-2, -h - 2 + bob, 4, 3);
+        // Tail
+        const tailSwing = Math.sin(this.state.time * 8 + c.pos.x) * 2;
+        ctx.fillStyle = '#cc5522';
+        ctx.fillRect(-w - 3, -h + 1 + bob + tailSwing, 4, h * 2 - 2);
+        // Corruption eye
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow})`;
+        ctx.fillRect(w - 4, -h + 2 + bob, 2, 2);
+        break;
+      }
+
+      case 'anglerfish': {
+        // Large mouth anglerfish with bioluminescent lure
+        ctx.fillStyle = '#2a3540';
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Huge jaw
+        ctx.fillStyle = '#1a2530';
+        ctx.fillRect(w - 8, -h + h * 0.4 + bob, 10, h);
+        // Teeth
+        ctx.fillStyle = '#ccbbaa';
+        for (let i = 0; i < 5; i++) {
+          ctx.fillRect(w - 6 + i * 2, -h + h * 0.35 + bob, 1, 3);
+          ctx.fillRect(w - 6 + i * 2, h * 0.4 + bob, 1, -3);
+        }
+        // Bioluminescent lure
+        const lureGlow = 0.5 + Math.sin(this.state.time * 3) * 0.3;
+        ctx.fillStyle = `rgba(100, 255, 200, ${lureGlow})`;
+        const lureX = -3;
+        const lureY = -h - 6 + bob + Math.sin(this.state.time * 2) * 2;
+        ctx.fillRect(lureX, lureY, 4, 4);
+        // Lure stalk
+        ctx.fillStyle = '#445566';
+        ctx.fillRect(lureX + 1, lureY + 4, 1, 6);
+        // Lure glow halo
+        ctx.fillStyle = `rgba(100, 255, 200, ${lureGlow * 0.15})`;
+        ctx.fillRect(lureX - 4, lureY - 4, 12, 12);
+        // Tiny angry eyes
+        ctx.fillStyle = `rgba(255, 200, 50, ${corruptGlow})`;
+        ctx.fillRect(w - 10, -h + 4 + bob, 2, 2);
+        break;
+      }
+
+      case 'sea_snake': {
+        // Long, sinuous serpent
+        const segs = 8;
+        for (let i = 0; i < segs; i++) {
+          const segBob = Math.sin(this.state.time * 5 + i * 0.9) * 4;
+          const t = i / segs;
+          const segW = 4 + (1 - Math.abs(t - 0.4)) * 3;
+          const g = Math.floor(40 + t * 30);
+          ctx.fillStyle = `rgb(${g}, ${100 + g}, ${50 + g})`;
+          ctx.fillRect(-w + i * (w * 2 / segs), -h / 2 + segBob, segW, h);
+          // Iridescent scale pattern
+          if (i % 2 === 0) {
+            ctx.fillStyle = `rgba(150, 255, 180, ${corruptGlow * 0.3})`;
+            ctx.fillRect(-w + i * (w * 2 / segs) + 1, -h / 2 + segBob + 1, 2, h - 2);
+          }
+        }
+        // Head with fangs
+        ctx.fillStyle = '#5a8a5a';
+        ctx.fillRect(w - 5, -h / 2, 5, h);
+        ctx.fillStyle = `rgba(200, 255, 100, ${corruptGlow})`;
+        ctx.fillRect(w - 3, -h / 2 + 1, 2, 2);
+        // Fangs
+        ctx.fillStyle = '#eeddcc';
+        ctx.fillRect(w - 2, h / 2 - 1, 1, 3);
+        ctx.fillRect(w - 4, h / 2 - 1, 1, 3);
+        break;
+      }
+
+      case 'mantis_shrimp': {
+        // Compact, armored, powerful claws
+        ctx.fillStyle = '#44aa77';
+        ctx.fillRect(-w + 2, -h + bob, w * 2 - 4, h * 2);
+        // Color bands
+        ctx.fillStyle = '#ee5533';
+        ctx.fillRect(-w + 4, -h + 3 + bob, w * 2 - 8, 3);
+        ctx.fillStyle = '#3388cc';
+        ctx.fillRect(-w + 4, h - 4 + bob, w * 2 - 8, 3);
+        // Massive hammer claws
+        const clawSwing = Math.sin(this.state.time * 6 + c.pos.x) > 0.7 ? 3 : 0;
+        ctx.fillStyle = '#cc3322';
+        ctx.fillRect(w - 2, -h + bob - clawSwing, 6, 6);
+        ctx.fillRect(w - 2, h - 6 + bob + clawSwing, 6, 6);
+        // Eyes on stalks
+        ctx.fillStyle = '#2288aa';
+        ctx.fillRect(-w + 2, -h - 4 + bob, 3, 5);
+        ctx.fillRect(w - 5, -h - 4 + bob, 3, 5);
+        ctx.fillStyle = `rgba(50, 200, 255, ${corruptGlow})`;
+        ctx.fillRect(-w + 2, -h - 5 + bob, 3, 3);
+        ctx.fillRect(w - 5, -h - 5 + bob, 3, 3);
+        break;
+      }
+
+      case 'squid': {
+        // Streamlined squid body
+        const sqBob = Math.sin(this.state.time * 2.5) * 2;
+        ctx.fillStyle = `rgba(180, 80, 120, ${0.6 + corruptGlow * 0.2})`;
+        ctx.beginPath();
+        ctx.ellipse(0, -h * 0.2 + sqBob, w - 2, h * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Mantle point
+        ctx.fillStyle = '#aa5577';
+        ctx.fillRect(-3, -h + sqBob, 6, 5);
+        // Tentacles
+        ctx.fillStyle = `rgba(160, 60, 100, ${0.5 + corruptGlow * 0.15})`;
+        for (let i = 0; i < 6; i++) {
+          const tBob = Math.sin(this.state.time * 3 + i * 1.1) * 3;
+          const tx2 = -w + 3 + i * ((w * 2 - 6) / 5);
+          ctx.fillRect(tx2, h * 0.1 + sqBob, 2, 8 + tBob);
+        }
+        // Large eyes
+        ctx.fillStyle = `rgba(255, 180, 50, ${corruptGlow})`;
+        ctx.fillRect(-w + 3, -h * 0.3 + sqBob, 4, 4);
+        ctx.fillRect(w - 7, -h * 0.3 + sqBob, 4, 4);
+        break;
+      }
+
+      case 'kelp_lurker': {
+        // Looks like kelp until it attacks — tall, thin, plant-like
+        const sway = Math.sin(this.state.time * 1.2 + c.pos.x) * 3;
+        const reveal = c.state === 'chase' || c.state === 'attack' ? 1 : 0.3;
+        // Kelp-like body
+        for (let i = 0; i < 6; i++) {
+          const t = i / 6;
+          const segSway = sway * t;
+          ctx.fillStyle = `rgba(30, ${70 + t * 30}, 40, ${0.6 + reveal * 0.3})`;
+          ctx.fillRect(-w / 2 + segSway, -h + i * (h * 2 / 6), w, h * 2 / 6 + 1);
+        }
+        // When aggressive: reveal red eyes and tendrils
+        if (reveal > 0.5) {
+          ctx.fillStyle = `rgba(255, 50, 50, ${corruptGlow})`;
+          ctx.fillRect(-3, -h * 0.3, 3, 3);
+          ctx.fillRect(2, -h * 0.3, 3, 3);
+          // Thorned tendrils
+          ctx.fillStyle = `rgba(200, 50, 30, ${corruptGlow * 0.5})`;
+          ctx.fillRect(-w / 2 - 4, -h * 0.1, 3, 6);
+          ctx.fillRect(w / 2 + 1, -h * 0.1, 3, 6);
+        }
+        break;
+      }
+
+      case 'lab_rat': {
+        // Tiny, fast, corrupted lab rat
+        ctx.fillStyle = '#887766';
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Darker back
+        ctx.fillStyle = '#776655';
+        ctx.fillRect(-w, -h + bob, w * 2, h);
+        // Tail
+        const ratTail = Math.sin(this.state.time * 8 + c.pos.x) * 2;
+        ctx.fillStyle = '#aa8877';
+        ctx.fillRect(-w - 4, -1 + bob + ratTail, 5, 1);
+        // Eyes — red corruption
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow})`;
+        ctx.fillRect(w - 3, -h + 1 + bob, 2, 2);
+        // Whiskers
+        ctx.fillStyle = '#998877';
+        ctx.fillRect(w - 1, -h + 2 + bob, 3, 1);
+        ctx.fillRect(w - 1, -h + 4 + bob, 3, 1);
+        break;
+      }
+
+      case 'specimen': {
+        // Warped lab specimen — asymmetric, unsettling
+        ctx.fillStyle = '#6a4a5a';
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Mutation lumps
+        ctx.fillStyle = '#8a5a6a';
+        ctx.fillRect(-w + 2, -h + 2 + bob, w, h);
+        ctx.fillRect(w - w + 5, h * 0.2 + bob, w - 3, h - 2);
+        // Exposed muscle/corruption
+        ctx.fillStyle = `rgba(255, 80, 60, ${corruptGlow * 0.6})`;
+        ctx.fillRect(-w + 4, -h + 6 + bob, 6, 4);
+        ctx.fillRect(w - 8, h * 0.1 + bob, 4, 6);
+        // Multiple mismatched eyes
+        ctx.fillStyle = `rgba(255, 200, 50, ${corruptGlow})`;
+        ctx.fillRect(w - 5, -h + 3 + bob, 3, 3);
+        ctx.fillStyle = `rgba(255, 50, 50, ${corruptGlow})`;
+        ctx.fillRect(w - 8, -h + 7 + bob, 2, 2);
+        ctx.fillRect(w - 3, -h + 8 + bob, 2, 2);
+        // Vestigial limbs
+        ctx.fillStyle = '#5a3a4a';
+        ctx.fillRect(-w - 3, h * 0.1 + bob, 4, 3);
+        ctx.fillRect(w, -h + h * 0.5 + bob, 4, 3);
+        break;
+      }
+
+      case 'drone': {
+        // Security drone — mechanical, angular
+        ctx.fillStyle = '#556677';
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Metal plating
+        ctx.fillStyle = '#667788';
+        ctx.fillRect(-w + 1, -h + 1 + bob, w * 2 - 2, 3);
+        ctx.fillRect(-w + 1, h - 3 + bob, w * 2 - 2, 3);
+        // Sensor eye — red scanning
+        const scanX = Math.sin(this.state.time * 4) * (w - 4);
+        ctx.fillStyle = `rgba(255, 30, 30, ${0.6 + Math.sin(this.state.time * 6) * 0.3})`;
+        ctx.fillRect(scanX - 2, -2 + bob, 4, 4);
+        // Scanner beam
+        ctx.fillStyle = `rgba(255, 30, 30, 0.1)`;
+        ctx.fillRect(scanX - 1, h / 2 + bob, 2, 20);
+        // Thrusters
+        ctx.fillStyle = '#444455';
+        ctx.fillRect(-w - 2, -h + 3 + bob, 3, h - 2);
+        ctx.fillRect(w - 1, -h + 3 + bob, 3, h - 2);
+        // Thruster glow
+        if (Math.abs(c.vel.x) > 5 || Math.abs(c.vel.y) > 5) {
+          ctx.fillStyle = `rgba(100, 150, 255, ${0.3 + Math.random() * 0.2})`;
+          ctx.fillRect(-w - 3, -2 + bob, 2, 4);
+          ctx.fillRect(w + 1, -2 + bob, 2, 4);
+        }
+        break;
+      }
+
+      case 'corrupted_diver': {
+        // Twisted mirror of the player — deeply unsettling
+        const dBob = Math.sin(this.state.time * 1.5 + c.pos.x) * 2;
+        // Body — tattered dive suit
+        ctx.fillStyle = '#2a3040';
+        ctx.fillRect(-5, -5 + dBob, 10, 14);
+        // Corruption has warped the suit
+        ctx.fillStyle = `rgba(120, 40, 40, ${corruptGlow * 0.4})`;
+        ctx.fillRect(-4, -3 + dBob, 8, 4);
+        // Helmet — cracked visor
+        ctx.fillStyle = '#556677';
+        ctx.fillRect(-4, -h + dBob, 8, 7);
+        // Cracked visor — dark inside
+        ctx.fillStyle = '#223344';
+        ctx.fillRect(-2, -h + 2 + dBob, 5, 4);
+        // Single glowing eye through cracked visor
+        ctx.fillStyle = `rgba(255, 100, 40, ${corruptGlow})`;
+        ctx.fillRect(0, -h + 3 + dBob, 2, 2);
+        // Arms — reaching out
+        ctx.fillStyle = '#334455';
+        const armReach = c.state === 'chase' ? 4 : 0;
+        ctx.fillRect(4, -3 + dBob, 4 + armReach, 3);
+        // Legs — limp
+        ctx.fillStyle = '#2a3040';
+        ctx.fillRect(-3, 9 + dBob, 3, 5);
+        ctx.fillRect(1, 9 + dBob, 3, 6);
+        // Corruption tendrils from suit
+        ctx.fillStyle = `rgba(180, 30, 30, ${corruptGlow * 0.5})`;
+        ctx.fillRect(-6, -2 + dBob, 2, 8);
+        ctx.fillRect(5, 0 + dBob, 2, 6);
+        break;
+      }
+
+      case 'overflow': {
+        // Liquid corruption entity — amorphous, seeping
+        const overflowT = this.state.time * 2 + c.pos.x;
+        ctx.fillStyle = `rgba(80, 20, 40, ${0.6 + corruptGlow * 0.2})`;
+        // Amorphous blob shape
+        for (let i = 0; i < 5; i++) {
+          const blobX = -w + i * (w * 2 / 4);
+          const blobH = h + Math.sin(overflowT + i * 1.5) * 3;
+          ctx.fillRect(blobX, -blobH / 2, w * 2 / 4 + 1, blobH);
+        }
+        // Glowing corruption veins
+        ctx.fillStyle = `rgba(255, 40, 60, ${corruptGlow * 0.7})`;
+        ctx.fillRect(-w + 3, -2, 1, 4);
+        ctx.fillRect(0, -3, 1, 6);
+        ctx.fillRect(w - 4, -1, 1, 3);
+        // Dripping tendrils below
+        for (let i = 0; i < 3; i++) {
+          const dripLen = 3 + Math.sin(overflowT + i * 2) * 2;
+          ctx.fillStyle = `rgba(100, 20, 30, ${0.5 + Math.sin(overflowT + i) * 0.2})`;
+          ctx.fillRect(-w + 4 + i * 8, h / 2, 2, dripLen);
+        }
+        // No distinct eyes — just a pulsing core
+        ctx.fillStyle = `rgba(255, 80, 80, ${corruptGlow * 0.4})`;
+        ctx.fillRect(-2, -2, 4, 4);
+        break;
+      }
+
+      case 'tangle': {
+        // THE TANGLE — colossal corrupted octopus boss
+        const boss = this.state.boss;
+        const phase = boss.creatureId === c.id ? boss.phase : 1;
+        const phaseGlow = phase === 3 ? 0.8 : phase === 2 ? 0.5 : 0.3;
+
+        // Central body mass — armored with absorbed shells
+        ctx.fillStyle = '#443350';
+        ctx.beginPath();
+        ctx.ellipse(0, -h * 0.15 + bob, w * 0.7, h * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Absorbed shell armor
+        ctx.fillStyle = '#556060';
+        ctx.fillRect(-w * 0.3, -h * 0.35 + bob, 6, 4);
+        ctx.fillRect(w * 0.1, -h * 0.25 + bob, 5, 3);
+        ctx.fillRect(-w * 0.1, h * 0.05 + bob, 4, 4);
+        // Twelve clustered eyes
+        const eyeGlow = `rgba(180, 255, 100, ${corruptGlow * phaseGlow})`;
+        ctx.fillStyle = eyeGlow;
+        for (let i = 0; i < 12; i++) {
+          const row = Math.floor(i / 4);
+          const col = i % 4;
+          ctx.fillRect(-6 + col * 4, -h * 0.3 + row * 4 + bob, 2, 2);
+        }
+        // Tentacles — 8 reaching outward
+        for (let t2 = 0; t2 < 8; t2++) {
+          const tentAngle = (t2 / 8) * Math.PI * 2;
+          const tentSway = Math.sin(this.state.time * 1.5 + t2 * 0.8) * 5;
+          const tentLen = 20 + Math.sin(this.state.time + t2) * 5;
+          const tx2 = Math.cos(tentAngle) * tentLen + tentSway;
+          const ty = Math.sin(tentAngle) * tentLen * 0.6;
+          ctx.fillStyle = `rgba(60, 40, 70, ${0.6 + corruptGlow * 0.2})`;
+          // Draw tentacle as segments
+          for (let seg = 0; seg < 4; seg++) {
+            const segT = seg / 4;
+            const segX = tx2 * segT;
+            const segY = ty * segT + h * 0.1;
+            ctx.fillRect(segX - 2, segY + bob, 4, 4);
+            // Hooked barbs
+            if (seg === 3) {
+              ctx.fillStyle = '#ccbbaa';
+              ctx.fillRect(segX, segY + bob, 2, 3);
+            }
+            ctx.fillStyle = `rgba(60, 40, 70, ${0.6 + corruptGlow * 0.2})`;
+          }
+        }
+        // Phase visuals
+        if (phase >= 2) {
+          ctx.fillStyle = `rgba(100, 40, 80, ${0.15 + Math.sin(this.state.time * 2) * 0.05})`;
+          ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        }
+        if (phase === 3) {
+          // Ink cloud aura
+          ctx.fillStyle = `rgba(20, 10, 30, ${0.2 + Math.sin(this.state.time * 4) * 0.1})`;
+          ctx.fillRect(-w - 10, -h - 10 + bob, w * 2 + 20, h * 2 + 20);
+        }
+        break;
+      }
+
+      case 'subject_zero': {
+        // SUBJECT ZERO — barely humanoid, pulsing corruption core
+        const boss = this.state.boss;
+        const phase = boss.creatureId === c.id ? boss.phase : 1;
+        const phaseGlow = phase === 3 ? 0.9 : phase === 2 ? 0.6 : 0.4;
+
+        // Twisted body — bent limbs
+        ctx.fillStyle = '#443344';
+        ctx.fillRect(-6, -8 + bob, 12, 18);
+        // Exposed ribcage
+        ctx.fillStyle = '#332233';
+        ctx.fillRect(-5, -4 + bob, 10, 8);
+        // Ribs
+        ctx.fillStyle = '#665566';
+        for (let i = 0; i < 4; i++) {
+          ctx.fillRect(-4, -3 + i * 3 + bob, 8, 1);
+        }
+        // PULSING CORE — visible through ribcage
+        const corePulse = 0.5 + Math.sin(this.state.time * 4) * 0.3;
+        ctx.fillStyle = `rgba(255, 120, 80, ${corePulse * phaseGlow})`;
+        ctx.fillRect(-2, -1 + bob, 4, 4);
+        // Core glow halo
+        ctx.fillStyle = `rgba(255, 120, 80, ${corePulse * phaseGlow * 0.2})`;
+        ctx.fillRect(-6, -5 + bob, 12, 12);
+        // Head — distorted, tilted
+        ctx.fillStyle = '#554455';
+        ctx.fillRect(-4, -h + bob, 8, 8);
+        // Tattered lab coat remnants
+        ctx.fillStyle = '#aaaaaa44';
+        ctx.fillRect(-7, -6 + bob, 3, 14);
+        ctx.fillRect(5, -4 + bob, 3, 12);
+        // Arms — bent wrong
+        ctx.fillStyle = '#443344';
+        ctx.fillRect(-w + 2, -3 + bob, 5, 3);
+        ctx.fillRect(-w, 0 + bob, 3, 6); // bent down
+        ctx.fillRect(w - 6, -5 + bob, 5, 3);
+        ctx.fillRect(w - 2, -2 + bob, 3, 8); // reaching
+        // Legs — twisted
+        ctx.fillStyle = '#332233';
+        ctx.fillRect(-4, 10 + bob, 3, 7);
+        ctx.fillRect(2, 10 + bob, 3, 8);
+        // Eyes — one human, one corrupted
+        ctx.fillStyle = '#88bbff';
+        ctx.fillRect(-2, -h + 2 + bob, 2, 2); // human eye
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow * phaseGlow})`;
+        ctx.fillRect(2, -h + 3 + bob, 3, 3); // corrupted eye
+        // Eye glow
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow * phaseGlow * 0.2})`;
+        ctx.fillRect(0, -h + 1 + bob, 8, 8);
+        // Corruption spreading
+        ctx.fillStyle = `rgba(200, 40, 40, ${corruptGlow * 0.4})`;
+        ctx.fillRect(-6, -h + 6 + bob, 2, 10);
+        ctx.fillRect(5, -h + 4 + bob, 2, 12);
+        // Phase effects
+        if (phase >= 2) {
+          // Ribcage opens wider, core beam hint
+          ctx.fillStyle = `rgba(255, 150, 80, ${corePulse * 0.3})`;
+          ctx.fillRect(-8, -2 + bob, 16, 6);
+        }
+        if (phase === 3) {
+          // Splitting apart visual
+          ctx.fillStyle = `rgba(255, 60, 40, ${0.15 + Math.sin(this.state.time * 6) * 0.1})`;
+          ctx.fillRect(-w - 5, -h - 5 + bob, w * 2 + 10, h * 2 + 10);
+        }
+        break;
+      }
     }
   }
-
-  renderMemoryFragments(ctx: CanvasRenderingContext2D, cam: Vec2) {
     for (const mf of this.state.memoryFragments) {
       if (mf.collected) continue;
       const sx = mf.pos.x - cam.x;
