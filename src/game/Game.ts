@@ -367,7 +367,9 @@ export class Game {
     if (this.state.depthZone !== oldZone) {
       this.zoneTransitionTimer = 3.5;
       this.zoneTransitionName = ZONE_NAMES[this.state.depthZone] || 'Unknown';
-      this.zoneTransitionDepth = Math.floor(this.state.player.pos.y * 0.3);
+      // Depth based on zone index (each zone ~200m apart)
+      const zoneDepths = [100, 300, 700, 1000, 1400];
+      this.zoneTransitionDepth = zoneDepths[this.state.depthZone] || 0;
       this.prevZone = oldZone;
     }
 
