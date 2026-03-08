@@ -1057,15 +1057,87 @@ export class Game {
         color: Math.random() > 0.5 ? '#44ffaa' : '#44aaff', type: 'glow',
       });
     }
-    // Zone-specific particles
+    // Zone-specific ambient particles
     const zone = this.state.depthZone;
+    
+    // Zone 0: Shallows — plankton, leaf debris
+    if (zone === 0) {
+      if (Math.random() < 2 * dt) {
+        this.state.particles.push({
+          pos: { x: this.state.camera.x + Math.random() * GAME_W, y: this.state.camera.y + Math.random() * GAME_H },
+          vel: { x: (Math.random() - 0.5) * 3, y: -1 + Math.random() * 0.5 },
+          lifetime: 5 + Math.random() * 3, maxLifetime: 8, size: 0.5 + Math.random(),
+          color: 'rgba(180, 220, 200, 0.3)', type: 'glow',
+        });
+      }
+    }
+    // Zone 1: Kelp — glowing green spores spiraling
+    if (zone === 1) {
+      if (Math.random() < 3 * dt) {
+        const x = this.state.camera.x + Math.random() * GAME_W;
+        this.state.particles.push({
+          pos: { x, y: this.state.camera.y + Math.random() * GAME_H },
+          vel: { x: Math.sin(x * 0.01) * 4, y: Math.cos(x * 0.01) * 2 },
+          lifetime: 4 + Math.random() * 3, maxLifetime: 7, size: 1 + Math.random(),
+          color: '#44ff8855', type: 'glow',
+        });
+      }
+    }
+    // Zone 2: Labs — sparks, dust motes, chemical drips
+    if (zone === 2) {
+      if (Math.random() < 1.5 * dt) {
+        this.state.particles.push({
+          pos: { x: this.state.camera.x + Math.random() * GAME_W, y: this.state.camera.y + 10 + Math.random() * 30 },
+          vel: { x: (Math.random() - 0.5) * 10, y: 8 + Math.random() * 6 },
+          lifetime: 0.5 + Math.random() * 0.5, maxLifetime: 1, size: 1,
+          color: Math.random() > 0.5 ? '#ffcc4488' : '#88ff8844', type: 'glow',
+        });
+      }
+      // Dust motes in light beams
+      if (Math.random() < 1 * dt) {
+        this.state.particles.push({
+          pos: { x: this.state.camera.x + Math.random() * GAME_W, y: this.state.camera.y + Math.random() * GAME_H },
+          vel: { x: (Math.random() - 0.5) * 2, y: 0.5 + Math.random() },
+          lifetime: 6 + Math.random() * 4, maxLifetime: 10, size: 0.5,
+          color: 'rgba(200, 200, 180, 0.2)', type: 'glow',
+        });
+      }
+    }
+    // Zone 3: Abyss — slow falling ash, rare light flickers
+    if (zone === 3) {
+      if (Math.random() < 0.5 * dt) {
+        this.state.particles.push({
+          pos: { x: this.state.camera.x + Math.random() * GAME_W, y: this.state.camera.y },
+          vel: { x: (Math.random() - 0.5) * 1, y: 3 + Math.random() * 2 },
+          lifetime: 8 + Math.random() * 5, maxLifetime: 13, size: 0.5 + Math.random() * 0.5,
+          color: 'rgba(80, 80, 100, 0.3)', type: 'glow',
+        });
+      }
+    }
+    // Zone 4: Core — corruption bursts, heat shimmer, orbiting debris
+    if (zone >= 4) {
+      if (Math.random() < 3 * dt) {
+        this.state.particles.push({
+          pos: { x: this.state.camera.x + Math.random() * GAME_W, y: this.state.camera.y + GAME_H - Math.random() * 60 },
+          vel: { x: (Math.random() - 0.5) * 8, y: -10 - Math.random() * 8 },
+          lifetime: 1.5 + Math.random() * 1.5, maxLifetime: 3, size: 1.5 + Math.random(),
+          color: '#ff224488', type: 'corruption',
+        });
+      }
+      // Heat shimmer rising
+      if (Math.random() < 2 * dt) {
+        this.state.particles.push({
+          pos: { x: this.state.camera.x + Math.random() * GAME_W, y: this.state.camera.y + GAME_H },
+          vel: { x: (Math.random() - 0.5) * 3, y: -15 - Math.random() * 10 },
+          lifetime: 2, maxLifetime: 2, size: 2,
+          color: 'rgba(255, 60, 30, 0.08)', type: 'glow',
+        });
+      }
+    }
+    // Corruption specks in deep zones (3+)
     if (zone >= 3 && Math.random() < 1 * dt) {
-      // Corruption specks in deep zones
       this.state.particles.push({
-        pos: {
-          x: this.state.camera.x + Math.random() * GAME_W,
-          y: this.state.camera.y + Math.random() * GAME_H,
-        },
+        pos: { x: this.state.camera.x + Math.random() * GAME_W, y: this.state.camera.y + Math.random() * GAME_H },
         vel: { x: (Math.random() - 0.5) * 6, y: (Math.random() - 0.5) * 3 },
         lifetime: 2 + Math.random() * 2, maxLifetime: 4, size: 1.5,
         color: zone >= 4 ? '#ff224488' : '#8844ff44', type: 'corruption',
