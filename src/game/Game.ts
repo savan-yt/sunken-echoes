@@ -2899,7 +2899,16 @@ export class Game {
     ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
 
     // HP fill with phase color
-    const phaseColors = ['#cc4444', '#ff6622', '#ff2222'];
+    const bossPhaseColors: Record<string, string[]> = {
+      rotjaw: ['#cc4444', '#ff6622', '#ff2222'],
+      tangle: ['#44aa66', '#22cc88', '#22ffaa'],
+      subject_zero: ['#cc6644', '#ff8822', '#ff4422'],
+    };
+    const bossNameColors: Record<string, string> = {
+      rotjaw: '#ff8866', tangle: '#66ffaa', subject_zero: '#ff9966',
+    };
+    const sprType = bossCreature.spriteType;
+    const phaseColors = bossPhaseColors[sprType] || ['#cc4444', '#ff6622', '#ff2222'];
     ctx.fillStyle = phaseColors[boss.phase - 1];
     ctx.fillRect(bx, by, barW * hpPct, barH);
 
@@ -2908,11 +2917,11 @@ export class Game {
     ctx.fillRect(bx + barW * 0.6, by, 1, barH);
     ctx.fillRect(bx + barW * 0.3, by, 1, barH);
 
-    // Boss name
-    ctx.fillStyle = '#ff8866';
+    // Boss name — dynamic
+    ctx.fillStyle = bossNameColors[sprType] || '#ff8866';
     ctx.font = '7px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`⚠ ROTJAW — Phase ${boss.phase} ⚠`, GAME_W / 2, by - 3);
+    ctx.fillText(`⚠ ${bossCreature.name.toUpperCase()} — Phase ${boss.phase} ⚠`, GAME_W / 2, by - 3);
 
     // HP text
     ctx.fillStyle = '#ffccaa';
