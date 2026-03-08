@@ -190,7 +190,7 @@ export class Game {
     return currents;
   }
 
-
+  generateAirBubbles(terrain: number[]): AirBubble[] {
     const bubbles: AirBubble[] = [];
     for (let x = 80; x < WORLD_W - 80; x += 120 + Math.floor(Math.random() * 200)) {
       const ty = terrain[Math.min(x, terrain.length - 1)];
