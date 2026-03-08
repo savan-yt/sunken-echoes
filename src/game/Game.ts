@@ -3367,6 +3367,106 @@ export class Game {
     });
   }
 
+  renderWaterCurrents(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    const t = this.state.time;
+
+    for (const current of this.state.waterCurrents) {
+      const startX = current.pos.x - cam.x;
+      const startY = current.pos.y - cam.y;
+      const endX = startX + current.dir.x * current.length;
+      const endY = startY + current.dir.y * current.length;
+
+      // Skip if off-screen
+      const minX = Math.min(startX, endX) - current.width;
+      const maxX = Math.max(startX, endX) + current.width;
+      if (maxX < -20 || minX > GAME_W + 20) continue;
+
+      ctx.save();
+
+      // Draw flowing streaks along the current
+      const numStreaks = Math.floor(current.length / 20);
+      const perpX = -current.dir.y;
+      const perpY = current.dir.x;
+
+      for (let i = 0; i < numStreaks; i++) {
+        // Stagger streaks across the width and along the length
+        const lateralOffset = (((i * 7 + 3) % 5) / 4 - 0.5) * current.width * 0.8;
+        const phase = ((t * 1.5 + i * 0.4) % 1); // 0-1 cycling position along current
+        const along = phase * current.length;
+
+        const sx = startX + current.dir.x * along + perpX * lateralOffset;
+        const sy = startY + current.dir.y * along + perpY * lateralOffset;
+
+        // Streak line
+        const streakLen = 12 + Math.sin(i * 2.3) * 4;
+        const ex = sx + current.dir.x * streakLen;
+        const ey = sy + current.dir.y * streakLen;
+
+        // Fade at edges of the current
+        const edgeFade = 1 - Math.abs(lateralOffset) / (current.width * 0.5);
+        // Fade at start/end
+        const endFade = Math.min(1, along / 30, (current.length - along) / 30);
+        const alpha = 0.25 * edgeFade * endFade;
+
+        ctx.strokeStyle = `rgba(120, 200, 255, ${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        // Arrow head at end of streak
+        if (i % 2 === 0) {
+          const arrowSize = 3;
+          const ax1 = ex - current.dir.x * arrowSize + perpX * arrowSize * 0.6;
+          const ay1 = ey - current.dir.y * arrowSize + perpY * arrowSize * 0.6;
+          const ax2 = ex - current.dir.x * arrowSize - perpX * arrowSize * 0.6;
+          const ay2 = ey - current.dir.y * arrowSize - perpY * arrowSize * 0.6;
+
+          ctx.fillStyle = `rgba(120, 200, 255, ${alpha * 0.8})`;
+          ctx.beginPath();
+          ctx.moveTo(ex, ey);
+          ctx.lineTo(ax1, ay1);
+          ctx.lineTo(ax2, ay2);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Ambient glow along current center line
+      ctx.globalAlpha = 0.04 + Math.sin(t * 2) * 0.015;
+      ctx.strokeStyle = 'rgba(100, 180, 255, 1)';
+      ctx.lineWidth = current.width * 0.3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Spawn current particles periodically
+    if (Math.random() < 0.3) {
+      for (const current of this.state.waterCurrents) {
+        if (Math.random() > 0.4) continue;
+        const along = Math.random() * current.length;
+        const perpOff = (Math.random() - 0.5) * current.width * 0.7;
+        const perpX = -current.dir.y;
+        const perpY = current.dir.x;
+        const px = current.pos.x + current.dir.x * along + perpX * perpOff;
+        const py = current.pos.y + current.dir.y * along + perpY * perpOff;
+        this.state.particles.push({
+          pos: { x: px, y: py },
+          vel: { x: current.dir.x * current.strength * 0.5, y: current.dir.y * current.strength * 0.5 },
+          lifetime: 0.8, maxLifetime: 0.8, size: 1 + Math.random(),
+          color: `rgba(120, 200, 255, ${0.15 + Math.random() * 0.1})`,
+          type: 'current',
+        });
+      }
+    }
+  }
+
   renderRipples(ctx: CanvasRenderingContext2D) {
     const cam = this.state.camera;
     for (const r of this.ripples) {
