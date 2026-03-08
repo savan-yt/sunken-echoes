@@ -90,6 +90,21 @@ export default function Minimap({ state }: MinimapProps) {
           opacity={0.6}
         />
 
+        {/* Water currents */}
+        {waterCurrents.map((c, i) => {
+          const cx = toMapX(c.pos.x);
+          const cy = toMapY(c.pos.y);
+          const ex = toMapX(c.pos.x + c.dir.x * c.length);
+          const ey = toMapY(c.pos.y + c.dir.y * c.length);
+          return (
+            <line key={`cur${i}`}
+              x1={cx} y1={cy} x2={ex} y2={ey}
+              stroke="hsl(195, 80%, 55%)" strokeWidth="1.5"
+              opacity={0.5} strokeDasharray="3,2"
+            />
+          );
+        })}
+
         {/* Air bubbles */}
         {airBubbles.filter(b => b.active).map((b, i) => (
           <circle key={`b${i}`} cx={toMapX(b.pos.x)} cy={toMapY(b.pos.y)} r={1.5}
