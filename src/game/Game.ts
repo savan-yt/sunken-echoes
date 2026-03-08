@@ -1302,6 +1302,8 @@ export class Game {
       if (p.type === 'death_chunk') { p.vel.y += 20 * dt; p.vel.x *= 0.98; }
       if (p.type === 'spark') { p.vel.x *= 0.95; p.vel.y *= 0.95; }
       if (p.type === 'shockwave') { /* stationary, size grows via render */ }
+      if (p.type === 'wake') { p.vel.x *= 0.9; p.vel.y *= 0.9; p.size *= 1.02; }
+      if (p.type === 'ripple') { p.size += 40 * dt; }
       return p.lifetime > 0;
     });
   }
