@@ -1257,6 +1257,9 @@ export class Game {
       p.lifetime -= dt;
       if (p.type === 'bubble') p.vel.y -= 10 * dt;
       if (p.type === 'corruption') { p.vel.y -= 3 * dt; p.size *= 0.995; }
+      if (p.type === 'death_chunk') { p.vel.y += 20 * dt; p.vel.x *= 0.98; }
+      if (p.type === 'spark') { p.vel.x *= 0.95; p.vel.y *= 0.95; }
+      if (p.type === 'shockwave') { /* stationary, size grows via render */ }
       return p.lifetime > 0;
     });
   }
