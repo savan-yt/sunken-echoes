@@ -1281,7 +1281,7 @@ export class Game {
         }
 
         if (c.deathTimer <= 0) {
-          if (c.id === 'boss_rotjaw') continue;
+          if (c.id.startsWith('boss_')) continue;
           const x = p.pos.x + (Math.random() > 0.5 ? 1 : -1) * (500 + Math.random() * 400);
           const clampedX = Math.max(50, Math.min(WORLD_W - 50, x));
           const tx = Math.floor(clampedX);
