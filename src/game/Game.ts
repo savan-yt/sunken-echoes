@@ -393,7 +393,8 @@ export class Game {
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
     const dmgBonus = this.getStatBonus('damage');
-    const baseDmg = HARPOON_DAMAGE + dmgBonus + this.state.skills.levels.combat * 3;
+    const weaponBonus = this.getEquippedWeaponDamage();
+    const baseDmg = HARPOON_DAMAGE + dmgBonus + weaponBonus + this.state.skills.levels.combat * 3;
 
     // Critical hit
     const critChance = this.getStatBonus('critChance');
