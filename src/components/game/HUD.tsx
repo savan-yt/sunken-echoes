@@ -116,7 +116,8 @@ export default function HUD({ state }: HUDProps) {
           <div>Click shoot</div>
           <div>I inventory</div>
           <div>K skills</div>
-          <div>E use item</div>
+          <div>E interact/use</div>
+          <div>F/Space advance</div>
         </div>
       </div>
 
