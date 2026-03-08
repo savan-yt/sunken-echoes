@@ -2474,6 +2474,42 @@ export class Game {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
         ctx.globalAlpha = alpha * 0.5;
         ctx.fillRect(sx - p.size, sy - p.size, p.size * 2, p.size * 2);
+      } else if (p.type === 'shockwave') {
+        // Expanding ring shockwave
+        const expandT = 1 - alpha;
+        const radius = p.size + expandT * 120;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 3 - expandT * 2;
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        // Inner fainter ring
+        ctx.globalAlpha = alpha * 0.2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius * 0.7, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (p.type === 'spark') {
+        // Electric spark — small bright flash with random jitter
+        ctx.fillStyle = p.color;
+        const jx = (Math.random() - 0.5) * 2;
+        const jy = (Math.random() - 0.5) * 2;
+        ctx.fillRect(sx + jx - 1, sy + jy - 1, 2, 2);
+        // Spark trail
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.fillRect(sx - p.vel.x * 0.01 - 1, sy - p.vel.y * 0.01 - 1, 2, 2);
+      } else if (p.type === 'death_chunk') {
+        // Rotating pixel chunk
+        ctx.save();
+        ctx.translate(sx, sy);
+        const rot = (p.rotation || 0) + (p.rotationSpeed || 0) * (p.maxLifetime - p.lifetime);
+        ctx.rotate(rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        // Detail pixel
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(-p.size / 4, -p.size / 4, p.size / 2, p.size / 2);
+        ctx.restore();
       } else {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
       }
