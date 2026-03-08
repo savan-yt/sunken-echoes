@@ -3941,4 +3941,369 @@ export class Game {
 
     this.callbacks.onStateUpdate({ ...this.state });
   }
+
+  // ======== NPC SYSTEM ========
+
+  spawnNPCs(terrain: number[]): NPCState[] {
+    return NPC_DEFS.map(def => {
+      const zoneMinX = def.zone * (WORLD_W / 5);
+      const zoneMaxX = (def.zone + 1) * (WORLD_W / 5);
+      const x = zoneMinX + (zoneMaxX - zoneMinX) * def.xOffset;
+      const tx = terrain[Math.floor(Math.min(x, terrain.length - 1))];
+      return {
+        id: def.id,
+        def,
+        pos: { x, y: tx - 30 },
+        interacting: false,
+        currentDialogue: null,
+        currentLine: 0,
+        completedNodes: [],
+        bobble: Math.random() * Math.PI * 2,
+      };
+    });
+  }
+
+  updateNPCs(dt: number) {
+    for (const npc of this.state.npcs) {
+      npc.bobble += dt * 1.5;
+    }
+  }
+
+  getNearbyNPC(): NPCState | null {
+    const p = this.state.player;
+    const px = p.pos.x + p.width / 2;
+    const py = p.pos.y + p.height / 2;
+    for (const npc of this.state.npcs) {
+      const dx = px - npc.pos.x;
+      const dy = py - npc.pos.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 50) return npc;
+    }
+    return null;
+  }
+
+  tryInteractNPC(): boolean {
+    const npc = this.getNearbyNPC();
+    if (!npc) return false;
+
+    // Find next uncompleted dialogue node
+    const nextNode = npc.def.dialogue.find(d => !npc.completedNodes.includes(d.id));
+    if (!nextNode) return false; // all dialogue exhausted
+
+    this.state.activeDialogue = { npcId: npc.id, nodeId: nextNode.id, lineIndex: 0 };
+    this.state.paused = true;
+    this.callbacks.onStateUpdate({ ...this.state });
+    return true;
+  }
+
+  advanceDialogue() {
+    const ad = this.state.activeDialogue;
+    if (!ad) return;
+
+    const npc = this.state.npcs.find(n => n.id === ad.npcId);
+    if (!npc) return;
+
+    const node = npc.def.dialogue.find(d => d.id === ad.nodeId);
+    if (!node) return;
+
+    if (ad.lineIndex < node.lines.length - 1) {
+      // Next line
+      ad.lineIndex++;
+    } else {
+      // Dialogue node complete — give reward
+      if (node.reward) {
+        const item = ITEMS[node.reward.itemId];
+        if (item) {
+          this.addToInventory(item, node.reward.count);
+          this.callbacks.onItemPickup(item, node.reward.count);
+        }
+      }
+      npc.completedNodes.push(node.id);
+      this.state.activeDialogue = null;
+      this.state.paused = false;
+    }
+    this.callbacks.onStateUpdate({ ...this.state });
+  }
+
+  addToInventory(item: ItemDef, count: number) {
+    const p = this.state.player;
+    // Try stacking first
+    if (item.stackable) {
+      for (const slot of p.inventory) {
+        if (slot && slot.item.id === item.id && slot.count < item.maxStack) {
+          const canAdd = Math.min(count, item.maxStack - slot.count);
+          slot.count += canAdd;
+          count -= canAdd;
+          if (count <= 0) return;
+        }
+      }
+    }
+    // Add to empty slots
+    while (count > 0) {
+      const emptyIdx = p.inventory.findIndex(s => s === null);
+      if (emptyIdx === -1) break;
+      const addCount = item.stackable ? Math.min(count, item.maxStack) : 1;
+      p.inventory[emptyIdx] = { item, count: addCount };
+      count -= addCount;
+    }
+  }
+
+  renderNPCs(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    const p = this.state.player;
+    const px = p.pos.x + p.width / 2;
+    const py = p.pos.y + p.height / 2;
+
+    for (const npc of this.state.npcs) {
+      const sx = npc.pos.x - cam.x;
+      const sy = npc.pos.y - cam.y + Math.sin(npc.bobble) * 3;
+
+      // Skip if off screen
+      if (sx < -40 || sx > GAME_W + 40 || sy < -40 || sy > GAME_H + 40) continue;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+
+      // Draw NPC sprite based on type
+      this.drawNPCSprite(ctx, npc);
+
+      // Draw name tag and interact prompt
+      const dx = px - npc.pos.x;
+      const dy = py - npc.pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Name always visible (when close enough to see)
+      ctx.font = '6px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = npc.def.color;
+      ctx.shadowColor = npc.def.color;
+      ctx.shadowBlur = 6;
+      ctx.fillText(npc.def.name, 0, -26);
+      ctx.shadowBlur = 0;
+
+      // Interact prompt when close
+      if (dist < 50) {
+        const hasDialogue = npc.def.dialogue.some(d => !npc.completedNodes.includes(d.id));
+        if (hasDialogue) {
+          const pulse = 0.6 + Math.sin(this.state.time * 4) * 0.4;
+          ctx.globalAlpha = pulse;
+          ctx.font = '5px "Press Start 2P", monospace';
+          ctx.fillStyle = '#88ccff';
+          ctx.fillText('[E] Talk', 0, -34);
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.font = '5px "Press Start 2P", monospace';
+          ctx.fillStyle = '#667788';
+          ctx.fillText('...', 0, -34);
+        }
+      }
+
+      ctx.restore();
+    }
+  }
+
+  drawNPCSprite(ctx: CanvasRenderingContext2D, npc: NPCState) {
+    switch (npc.def.spriteType) {
+      case 'mara': {
+        // Mara: stranded diver - similar to player but with distinct orange suit
+        const bob = Math.sin(npc.bobble) * 2;
+        // Body - orange dive suit
+        ctx.fillStyle = '#cc6622';
+        ctx.fillRect(-5, -5 + bob, 10, 14);
+        ctx.fillStyle = '#dd7733';
+        ctx.fillRect(-4, -3 + bob, 8, 2);
+        // Belt
+        ctx.fillStyle = '#886644';
+        ctx.fillRect(-5, 5 + bob, 10, 2);
+        // Helmet
+        ctx.fillStyle = '#998877';
+        ctx.fillRect(-4, -11 + bob, 8, 7);
+        ctx.fillStyle = '#aa9988';
+        ctx.fillRect(-5, -5 + bob, 10, 1);
+        // Visor - warm yellow
+        ctx.fillStyle = '#ffcc66';
+        ctx.fillRect(-2, -10 + bob, 5, 5);
+        ctx.fillStyle = 'rgba(255, 220, 150, 0.4)';
+        ctx.fillRect(-1, -9 + bob, 3, 3);
+        // Legs
+        ctx.fillStyle = '#cc6622';
+        ctx.fillRect(-4, 7 + bob, 3, 5);
+        ctx.fillRect(1, 7 + bob, 3, 5);
+        // Flippers
+        ctx.fillStyle = '#dd8844';
+        ctx.fillRect(-5, 11 + bob, 4, 2);
+        ctx.fillRect(1, 11 + bob, 4, 2);
+        // Glow
+        ctx.shadowColor = '#ffaa44';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = 'rgba(255, 170, 68, 0.15)';
+        ctx.fillRect(-8, -14 + bob, 16, 30);
+        ctx.shadowBlur = 0;
+        break;
+      }
+      case 'dr_hess': {
+        // Dr. Hess: lab coat over wetsuit, glasses
+        const bob = Math.sin(npc.bobble) * 2;
+        // Lab coat (white-ish)
+        ctx.fillStyle = '#ccccbb';
+        ctx.fillRect(-6, -6 + bob, 12, 16);
+        ctx.fillStyle = '#ddddcc';
+        ctx.fillRect(-5, -4 + bob, 10, 2);
+        // Coat buttons
+        ctx.fillStyle = '#888877';
+        ctx.fillRect(0, -2 + bob, 1, 1);
+        ctx.fillRect(0, 1 + bob, 1, 1);
+        ctx.fillRect(0, 4 + bob, 1, 1);
+        // Wetsuit underneath
+        ctx.fillStyle = '#334455';
+        ctx.fillRect(-4, -3 + bob, 2, 10);
+        ctx.fillRect(2, -3 + bob, 2, 10);
+        // Head - bald with glasses
+        ctx.fillStyle = '#ddbbaa';
+        ctx.fillRect(-3, -12 + bob, 6, 7);
+        // Glasses
+        ctx.fillStyle = '#4488aa';
+        ctx.fillRect(-3, -10 + bob, 3, 2);
+        ctx.fillRect(1, -10 + bob, 3, 2);
+        ctx.fillStyle = '#667788';
+        ctx.fillRect(-1, -10 + bob, 2, 1);
+        // Legs
+        ctx.fillStyle = '#ccccbb';
+        ctx.fillRect(-4, 8 + bob, 3, 4);
+        ctx.fillRect(1, 8 + bob, 3, 4);
+        // Boots
+        ctx.fillStyle = '#445566';
+        ctx.fillRect(-4, 11 + bob, 3, 2);
+        ctx.fillRect(1, 11 + bob, 3, 2);
+        // Glow
+        ctx.shadowColor = '#66cc88';
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = 'rgba(100, 200, 130, 0.12)';
+        ctx.fillRect(-8, -14 + bob, 16, 30);
+        ctx.shadowBlur = 0;
+        break;
+      }
+      case 'subject_7': {
+        // Subject 7: half-corrupted diver, purple corruption veins
+        const bob = Math.sin(npc.bobble) * 2;
+        const pulse = 0.6 + Math.sin(this.state.time * 3) * 0.4;
+        // Body - torn suit
+        ctx.fillStyle = '#3a2a4a';
+        ctx.fillRect(-5, -5 + bob, 10, 14);
+        // Corruption veins
+        ctx.fillStyle = `rgba(170, 85, 255, ${pulse * 0.6})`;
+        ctx.fillRect(-4, -3 + bob, 1, 8);
+        ctx.fillRect(3, -1 + bob, 1, 6);
+        ctx.fillRect(-2, 2 + bob, 6, 1);
+        // Exposed flesh/corruption on arm
+        ctx.fillStyle = '#8844aa';
+        ctx.fillRect(4, -2 + bob, 2, 5);
+        // Head - partially corrupted
+        ctx.fillStyle = '#bbaa99';
+        ctx.fillRect(-3, -12 + bob, 3, 7);
+        // Corrupted half
+        ctx.fillStyle = '#6633aa';
+        ctx.fillRect(0, -12 + bob, 3, 7);
+        // Eye (normal side)
+        ctx.fillStyle = '#88ccff';
+        ctx.fillRect(-2, -10 + bob, 2, 2);
+        // Eye (corrupted side) - glowing
+        ctx.fillStyle = `rgba(200, 100, 255, ${pulse})`;
+        ctx.fillRect(1, -10 + bob, 2, 2);
+        // Legs
+        ctx.fillStyle = '#3a2a4a';
+        ctx.fillRect(-4, 7 + bob, 3, 5);
+        ctx.fillRect(1, 7 + bob, 3, 5);
+        // Corruption glow
+        ctx.shadowColor = '#aa55ff';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = `rgba(170, 85, 255, ${pulse * 0.1})`;
+        ctx.fillRect(-8, -14 + bob, 16, 30);
+        ctx.shadowBlur = 0;
+        break;
+      }
+    }
+  }
+
+  renderDialogueOverlay(ctx: CanvasRenderingContext2D) {
+    const ad = this.state.activeDialogue;
+    if (!ad) return;
+
+    const npc = this.state.npcs.find(n => n.id === ad.npcId);
+    if (!npc) return;
+    const node = npc.def.dialogue.find(d => d.id === ad.nodeId);
+    if (!node) return;
+    const line = node.lines[ad.lineIndex];
+    if (!line) return;
+
+    // Darken background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+    // Dialogue box
+    const boxH = 90;
+    const boxY = GAME_H - boxH - 10;
+    const boxX = 20;
+    const boxW = GAME_W - 40;
+
+    // Box background
+    ctx.fillStyle = 'rgba(10, 18, 30, 0.95)';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    // Border
+    ctx.strokeStyle = npc.def.color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = npc.def.color;
+    ctx.shadowBlur = 8;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+    ctx.shadowBlur = 0;
+
+    // Speaker icon and name
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = npc.def.color;
+    ctx.fillText(`${line.icon} ${line.speaker}`, boxX + 10, boxY + 16);
+
+    // Dialogue text - word wrap
+    ctx.font = '12px "VT323", monospace';
+    ctx.fillStyle = '#c8d0d8';
+    const maxWidth = boxW - 30;
+    const words = line.text.split(' ');
+    let currentLine = '';
+    let lineY = boxY + 34;
+
+    for (const word of words) {
+      const testLine = currentLine ? currentLine + ' ' + word : word;
+      if (ctx.measureText(testLine).width > maxWidth) {
+        ctx.fillText(currentLine, boxX + 12, lineY);
+        currentLine = word;
+        lineY += 16;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    ctx.fillText(currentLine, boxX + 12, lineY);
+
+    // Progress indicator
+    ctx.font = '6px "Press Start 2P", monospace';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#556677';
+    ctx.fillText(`${ad.lineIndex + 1}/${node.lines.length}`, boxX + boxW - 10, boxY + 16);
+
+    // Continue prompt
+    const pulse = 0.5 + Math.sin(this.state.time * 5) * 0.5;
+    ctx.globalAlpha = pulse;
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.fillStyle = '#88ccff';
+    ctx.fillText(ad.lineIndex < node.lines.length - 1 ? '[F/SPACE] Continue' : '[F/SPACE] Close', boxX + boxW - 10, boxY + boxH - 8);
+    ctx.globalAlpha = 1;
+
+    // Reward preview on last line
+    if (ad.lineIndex === node.lines.length - 1 && node.reward) {
+      const item = ITEMS[node.reward.itemId];
+      if (item) {
+        ctx.font = '6px "Press Start 2P", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = RARITY_COLORS[item.rarity];
+        ctx.fillText(`Reward: ${item.icon} ${item.name} x${node.reward.count}`, boxX + 10, boxY + boxH - 8);
+      }
+    }
+  }
 }
