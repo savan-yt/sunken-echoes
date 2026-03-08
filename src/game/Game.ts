@@ -763,11 +763,43 @@ export class Game {
     const dy = p.pos.y - bossCreature.pos.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Activate boss when player is near
+    // Activate boss when player is near — CINEMATIC INTRO
     if (!boss.active && dist < 250) {
       boss.active = true;
       boss.creatureId = bossCreature.id;
       bossCreature.state = 'chase';
+
+      // Trigger boss intro cinematic
+      this.bossIntroActive = true;
+      this.bossIntroTimer = 3.0;
+
+      // Gate slam particles (barriers closing)
+      const bx = bossCreature.pos.x + bossCreature.width / 2;
+      const by = bossCreature.pos.y + bossCreature.height / 2;
+      for (let side = -1; side <= 1; side += 2) {
+        for (let i = 0; i < 10; i++) {
+          this.state.particles.push({
+            pos: { x: bx + side * 200, y: by - 50 + i * 12 },
+            vel: { x: 0, y: 0 },
+            lifetime: 2.5, maxLifetime: 2.5, size: 6,
+            color: '#334455', type: 'death_chunk',
+          });
+        }
+      }
+      // Gate slam screen shake
+      this.triggerScreenShake(6, 0.5);
+
+      // Spotlight particles converging on boss
+      for (let i = 0; i < 20; i++) {
+        const angle = (i / 20) * Math.PI * 2;
+        const r = 100 + Math.random() * 50;
+        this.state.particles.push({
+          pos: { x: bx + Math.cos(angle) * r, y: by + Math.sin(angle) * r },
+          vel: { x: -Math.cos(angle) * 40, y: -Math.sin(angle) * 40 },
+          lifetime: 2, maxLifetime: 2, size: 2,
+          color: '#ffaa44', type: 'glow',
+        });
+      }
     }
 
     if (!boss.active) return;
@@ -777,15 +809,50 @@ export class Game {
     const newPhase = hpPct > 0.6 ? 1 : hpPct > 0.3 ? 2 : 3;
     if (newPhase !== boss.phase) {
       boss.phase = newPhase as 1 | 2 | 3;
-      boss.phaseTransition = 1.5;
-      // Phase transition roar — particles burst
-      for (let i = 0; i < 15; i++) {
+      boss.phaseTransition = 2.0;
+
+      const bx = bossCreature.pos.x + bossCreature.width / 2;
+      const by = bossCreature.pos.y + bossCreature.height / 2;
+
+      // SHOCKWAVE rings expanding from boss
+      for (let ring = 0; ring < 2; ring++) {
         this.state.particles.push({
-          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
-          vel: { x: (Math.random() - 0.5) * 100, y: (Math.random() - 0.5) * 100 },
+          pos: { x: bx, y: by },
+          vel: { x: 0, y: 0 },
+          lifetime: 1.2 + ring * 0.3, maxLifetime: 1.2 + ring * 0.3,
+          size: 10 + ring * 30,
+          color: newPhase === 3 ? '#ff2222' : '#ff6644',
+          type: 'shockwave',
+        });
+      }
+
+      // Phase transition particle burst
+      for (let i = 0; i < 25; i++) {
+        const angle = (i / 25) * Math.PI * 2;
+        const speed = 60 + Math.random() * 60;
+        this.state.particles.push({
+          pos: { x: bx, y: by },
+          vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
           lifetime: 1.5, maxLifetime: 1.5, size: 3 + Math.random() * 3,
           color: newPhase === 3 ? '#ff2222' : '#ff6644', type: 'boss_charge',
         });
+      }
+
+      // Brief white flash
+      this.damageFlash = 0.1;
+      this.triggerScreenShake(8, 0.4);
+
+      // Phase 2+: gore/new limb burst
+      if (newPhase >= 2) {
+        for (let i = 0; i < 12; i++) {
+          this.state.particles.push({
+            pos: { x: bx + (Math.random() - 0.5) * 30, y: by + (Math.random() - 0.5) * 20 },
+            vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+            lifetime: 2, maxLifetime: 2, size: 3 + Math.random() * 3,
+            color: '#aa2233', type: 'death_chunk',
+            rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 8,
+          });
+        }
       }
     }
 
