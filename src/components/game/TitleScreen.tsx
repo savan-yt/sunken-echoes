@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import titleBg from '@/assets/title-bg.jpg';
+import CoopLobby from './CoopLobby';
 
 interface TitleScreenProps {
   onStart: () => void;
 }
 
 export default function TitleScreen({ onStart }: TitleScreenProps) {
+  const [showCoop, setShowCoop] = useState(false);
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background">
       {/* Background image */}
@@ -38,38 +42,56 @@ export default function TitleScreen({ onStart }: TitleScreenProps) {
         ))}
       </div>
 
+      {/* Co-op Lobby Overlay */}
+      {showCoop && (
+        <CoopLobby onBack={() => setShowCoop(false)} onStartGame={onStart} />
+      )}
+
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full px-4">
-        <div className="text-center mb-12">
-          <h1 className="font-pixel text-2xl md:text-4xl text-primary glow-cyan mb-3 tracking-wider">
-            FORGOTTEN
-          </h1>
-          <h1 className="font-pixel text-xl md:text-3xl text-foreground mb-6 tracking-widest">
-            DEPTHS
-          </h1>
-          <div className="w-32 h-px mx-auto bg-gradient-to-r from-transparent via-primary/50 to-transparent mb-4" />
-          <p className="font-pixel-body text-sm md:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-            You awaken on the ocean floor. No memory. No name.<br />
-            Only darkness, and the hum of the deep.
-          </p>
-        </div>
+      {!showCoop && (
+        <div className="relative z-10 flex flex-col items-center justify-center h-full px-4">
+          <div className="text-center mb-12">
+            <h1 className="font-pixel text-2xl md:text-4xl text-primary glow-cyan mb-3 tracking-wider">
+              FORGOTTEN
+            </h1>
+            <h1 className="font-pixel text-xl md:text-3xl text-foreground mb-6 tracking-widest">
+              DEPTHS
+            </h1>
+            <div className="w-32 h-px mx-auto bg-gradient-to-r from-transparent via-primary/50 to-transparent mb-4" />
+            <p className="font-pixel-body text-sm md:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
+              You awaken on the ocean floor. No memory. No name.<br />
+              Only darkness, and the hum of the deep.
+            </p>
+          </div>
 
-        <button
-          onClick={onStart}
-          className="group font-pixel text-xs md:text-sm text-primary glow-cyan
-            px-8 py-3 pixel-border bg-secondary/30 hover:bg-primary/20
-            transition-all duration-300 hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]
-            animate-pulse-glow"
-        >
-          DESCEND
-        </button>
+          <div className="space-y-3 w-full max-w-xs">
+            <button
+              onClick={onStart}
+              className="w-full group font-pixel text-xs md:text-sm text-primary glow-cyan
+                px-8 py-3 pixel-border bg-secondary/30 hover:bg-primary/20
+                transition-all duration-300 hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]
+                animate-pulse-glow"
+            >
+              SOLO DIVE
+            </button>
 
-        <div className="mt-12 text-center">
-          <p className="font-pixel text-[7px] md:text-[8px] text-muted-foreground/40 tracking-wider">
-            WASD TO SWIM &nbsp;•&nbsp; CLICK TO SHOOT &nbsp;•&nbsp; I FOR INVENTORY
-          </p>
+            <button
+              onClick={() => setShowCoop(true)}
+              className="w-full group font-pixel text-xs md:text-sm text-accent
+                px-8 py-3 pixel-border bg-secondary/30 hover:bg-accent/20
+                transition-all duration-300 hover:shadow-[0_0_20px_hsl(var(--accent)/0.3)]"
+            >
+              🤝 CO-OP
+            </button>
+          </div>
+
+          <div className="mt-12 text-center">
+            <p className="font-pixel text-[7px] md:text-[8px] text-muted-foreground/40 tracking-wider">
+              WASD TO SWIM &nbsp;•&nbsp; CLICK TO SHOOT &nbsp;•&nbsp; I FOR INVENTORY
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
