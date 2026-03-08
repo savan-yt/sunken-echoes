@@ -129,6 +129,15 @@ export interface AirBubble {
   respawnTimer: number;
 }
 
+export interface WaterCurrent {
+  pos: Vec2;         // start position
+  dir: Vec2;         // normalized direction
+  length: number;    // length of the current stream
+  width: number;     // width of the effect area
+  strength: number;  // force multiplier
+  zone: number;      // which zone this current is in
+}
+
 export interface Particle {
   pos: Vec2;
   vel: Vec2;
