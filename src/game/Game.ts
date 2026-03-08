@@ -3764,7 +3764,7 @@ export class Game {
       const sy = c.pos.y - cam.y;
       if (sx < -60 || sx > GAME_W + 60) continue;
 
-      const deathProgress = 1 - Math.max(0, c.deathTimer / (c.spriteType === 'rotjaw' ? 5 : c.spriteType === 'shark' ? 3 : c.spriteType === 'crab' ? 2.5 : c.spriteType === 'eel' ? 2 : 1.5));
+      const deathProgress = 1 - Math.max(0, c.deathTimer / (c.spriteType === 'rotjaw' ? 5 : c.spriteType === 'tangle' ? 5 : c.spriteType === 'subject_zero' ? 5 : c.spriteType === 'shark' ? 3 : c.spriteType === 'crab' ? 2.5 : c.spriteType === 'eel' ? 2 : 1.5));
 
       ctx.save();
 
