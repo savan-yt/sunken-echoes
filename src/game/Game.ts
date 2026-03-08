@@ -812,7 +812,7 @@ export class Game {
 
         if (dist < c.attackRange && c.attackCooldown <= 0 && p.invincible <= 0) {
           const defense = this.getStatBonus('defense');
-          const dmg = Math.max(1, c.damage - defense);
+          const dmg = Math.max(1, Math.floor((c.damage - defense) * (1 - this.getGearDamageReduction())));
           p.hp -= dmg;
           p.invincible = 0.5;
           c.attackCooldown = 1;
