@@ -3780,6 +3780,32 @@ export class Game {
           this.drawCreatureSprite(ctx, c);
           break;
         }
+        case 'tangle': {
+          // Tentacles fly apart, body implodes then explodes with ink
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          const implode = deathProgress < 0.4 ? 1 - deathProgress * 0.5 : 0.8 + (deathProgress - 0.4) * 0.5;
+          ctx.scale(implode, implode);
+          ctx.globalAlpha = Math.max(0, 1 - deathProgress * 1.2);
+          ctx.rotate(deathProgress * 0.5);
+          this.drawCreatureSprite(ctx, c);
+          // Ink eruption overlay
+          if (deathProgress > 0.3) {
+            const inkAlpha = Math.min(0.6, (deathProgress - 0.3) * 1.5);
+            ctx.fillStyle = `rgba(20, 10, 30, ${inkAlpha})`;
+            ctx.fillRect(-c.width, -c.height, c.width * 2, c.height * 2);
+          }
+          break;
+        }
+        case 'subject_zero': {
+          // Glitch dissolve — flickers between visible and invisible
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          const glitchVisible = Math.sin(deathProgress * 80) > -0.3;
+          ctx.globalAlpha = glitchVisible ? Math.max(0, 1 - deathProgress) : 0;
+          const glitchOffset = Math.sin(deathProgress * 50) * 5 * deathProgress;
+          ctx.translate(glitchOffset, 0);
+          this.drawCreatureSprite(ctx, c);
+          break;
+        }
         case 'jelly': {
           // Flash and dissolve — shrink + flash white
           const shrink = 1 - deathProgress * 0.8;
