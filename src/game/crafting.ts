@@ -44,6 +44,26 @@ ITEMS.bio_stim = {
   id: 'bio_stim', name: 'Bio-Stim', description: '+30% attack speed for 10 seconds.',
   rarity: 'rare', stackable: true, maxStack: 3, icon: '💉', category: 'consumable',
 };
+ITEMS.tentacle_whip = {
+  id: 'tentacle_whip', name: 'Tentacle Whip', description: 'A lashing weapon with extended reach. +40% range.',
+  rarity: 'epic', stackable: false, maxStack: 1, icon: '🐙', category: 'weapon',
+};
+ITEMS.ink_cloak = {
+  id: 'ink_cloak', name: 'Ink Cloak', description: 'Shrouds you in ink. -30% enemy detection radius.',
+  rarity: 'epic', stackable: false, maxStack: 1, icon: '🖤', category: 'gear',
+};
+ITEMS.tangle_shield = {
+  id: 'tangle_shield', name: 'Tangle Shield', description: 'Living tentacle armor. Blocks 25% damage, retaliates.',
+  rarity: 'epic', stackable: false, maxStack: 1, icon: '🛡️', category: 'gear',
+};
+ITEMS.ink_smoke = {
+  id: 'ink_smoke', name: 'Ink Smoke', description: 'Creates a large ink cloud. Enemies lose tracking for 5s.',
+  rarity: 'rare', stackable: true, maxStack: 3, icon: '🌑', category: 'consumable',
+};
+ITEMS.corrupted_elixir = {
+  id: 'corrupted_elixir', name: 'Corrupted Elixir', description: 'Drink darkness. +50% damage for 8s, costs 15 HP.',
+  rarity: 'legendary', stackable: true, maxStack: 2, icon: '💜', category: 'consumable',
+};
 
 export const RECIPES: CraftingRecipe[] = [
   // Weapons
@@ -152,6 +172,61 @@ export const RECIPES: CraftingRecipe[] = [
       { itemId: 'scrap_metal', count: 3 },
     ],
     category: 'gear',
+  },
+  // Tangle boss loot recipes
+  {
+    id: 'tentacle_whip', name: 'Tentacle Whip', icon: '🐙',
+    description: 'Forge a living weapon from Tangle tentacles.',
+    result: { itemId: 'tentacle_whip', count: 1 },
+    ingredients: [
+      { itemId: 'tangle_tentacle', count: 3 },
+      { itemId: 'scrap_metal', count: 4 },
+      { itemId: 'bio_cell', count: 1 },
+    ],
+    category: 'weapon',
+  },
+  {
+    id: 'ink_cloak', name: 'Ink Cloak', icon: '🖤',
+    description: 'Weave ink sacs into a stealth cloak.',
+    result: { itemId: 'ink_cloak', count: 1 },
+    ingredients: [
+      { itemId: 'ink_sac', count: 4 },
+      { itemId: 'tangle_tentacle', count: 1 },
+      { itemId: 'rotted_skin', count: 3 },
+    ],
+    category: 'gear',
+  },
+  {
+    id: 'tangle_shield', name: 'Tangle Shield', icon: '🛡️',
+    description: 'Shape tentacles into living armor.',
+    result: { itemId: 'tangle_shield', count: 1 },
+    ingredients: [
+      { itemId: 'tangle_tentacle', count: 2 },
+      { itemId: 'bone_shards', count: 6 },
+      { itemId: 'ink_sac', count: 2 },
+    ],
+    category: 'gear',
+  },
+  {
+    id: 'ink_smoke', name: 'Ink Smoke', icon: '🌑',
+    description: 'Concentrate ink into a dense smoke bomb.',
+    result: { itemId: 'ink_smoke', count: 2 },
+    ingredients: [
+      { itemId: 'ink_sac', count: 3 },
+      { itemId: 'kelp_fiber', count: 2 },
+    ],
+    category: 'consumable',
+  },
+  {
+    id: 'corrupted_elixir', name: 'Corrupted Elixir', icon: '💜',
+    description: 'Distill a corrupted heart into raw power.',
+    result: { itemId: 'corrupted_elixir', count: 1 },
+    ingredients: [
+      { itemId: 'corrupted_heart', count: 1 },
+      { itemId: 'ink_sac', count: 2 },
+      { itemId: 'toxic_gland', count: 1 },
+    ],
+    category: 'consumable',
   },
 ];
 
