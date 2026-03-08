@@ -44,6 +44,26 @@ ITEMS.bio_stim = {
   id: 'bio_stim', name: 'Bio-Stim', description: '+30% attack speed for 10 seconds.',
   rarity: 'rare', stackable: true, maxStack: 3, icon: '💉', category: 'consumable',
 };
+ITEMS.tentacle_whip = {
+  id: 'tentacle_whip', name: 'Tentacle Whip', description: 'A lashing weapon with extended reach. +40% range.',
+  rarity: 'epic', stackable: false, maxStack: 1, icon: '🐙', category: 'weapon',
+};
+ITEMS.ink_cloak = {
+  id: 'ink_cloak', name: 'Ink Cloak', description: 'Shrouds you in ink. -30% enemy detection radius.',
+  rarity: 'epic', stackable: false, maxStack: 1, icon: '🖤', category: 'gear',
+};
+ITEMS.tangle_shield = {
+  id: 'tangle_shield', name: 'Tangle Shield', description: 'Living tentacle armor. Blocks 25% damage, retaliates.',
+  rarity: 'epic', stackable: false, maxStack: 1, icon: '🛡️', category: 'gear',
+};
+ITEMS.ink_smoke = {
+  id: 'ink_smoke', name: 'Ink Smoke', description: 'Creates a large ink cloud. Enemies lose tracking for 5s.',
+  rarity: 'rare', stackable: true, maxStack: 3, icon: '🌑', category: 'consumable',
+};
+ITEMS.corrupted_elixir = {
+  id: 'corrupted_elixir', name: 'Corrupted Elixir', description: 'Drink darkness. +50% damage for 8s, costs 15 HP.',
+  rarity: 'legendary', stackable: true, maxStack: 2, icon: '💜', category: 'consumable',
+};
 
 export const RECIPES: CraftingRecipe[] = [
   // Weapons
