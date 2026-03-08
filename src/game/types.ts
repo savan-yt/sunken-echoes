@@ -129,6 +129,15 @@ export interface AirBubble {
   respawnTimer: number;
 }
 
+export interface WaterCurrent {
+  pos: Vec2;         // start position
+  dir: Vec2;         // normalized direction
+  length: number;    // length of the current stream
+  width: number;     // width of the effect area
+  strength: number;  // force multiplier
+  zone: number;      // which zone this current is in
+}
+
 export interface Particle {
   pos: Vec2;
   vel: Vec2;
@@ -136,7 +145,7 @@ export interface Particle {
   maxLifetime: number;
   size: number;
   color: string;
-  type: 'bubble' | 'glow' | 'damage' | 'pickup' | 'corruption' | 'light' | 'boss_charge' | 'memory' | 'pickup_text' | 'damage_text' | 'poison' | 'shockwave' | 'spark' | 'death_chunk' | 'ripple' | 'wake';
+  type: 'bubble' | 'glow' | 'damage' | 'pickup' | 'corruption' | 'light' | 'boss_charge' | 'memory' | 'pickup_text' | 'damage_text' | 'poison' | 'shockwave' | 'spark' | 'death_chunk' | 'ripple' | 'wake' | 'current';
   rotation?: number;
   rotationSpeed?: number;
   text?: string;
@@ -311,6 +320,7 @@ export interface GameState {
   memoryCollected: { title: string; text: string } | null;
   npcs: NPCState[];
   activeDialogue: { npcId: string; nodeId: string; lineIndex: number } | null;
+  waterCurrents: WaterCurrent[];
 }
 
 export interface GameCallbacks {

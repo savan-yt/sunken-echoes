@@ -1,7 +1,7 @@
 import {
   GameState, Player, Creature, Projectile, DroppedItem, AirBubble, Particle,
   Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment, ZONE_NAMES,
-  NPCState, DialogueNode,
+  NPCState, DialogueNode, WaterCurrent,
 } from './types';
 import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES, ZONE_CREATURES, NPC_DEFS } from './data';
 import { RECIPES, canCraft } from './crafting';
@@ -75,6 +75,7 @@ export class Game {
     const rocks = this.generateRocks(terrain);
     const airBubbles = this.generateAirBubbles(terrain);
     const creatures = this.spawnCreatures(terrain);
+    const waterCurrents = this.generateWaterCurrents(terrain);
 
     const player: Player = {
       pos: { x: 100, y: terrain[100] - 60 },
@@ -111,6 +112,7 @@ export class Game {
       memoryCollected: null,
       npcs,
       activeDialogue: null,
+      waterCurrents,
       skills: {
         levels: { diving: 0, combat: 0, stealth: 0, crafting: 0, resilience: 0 },
         skillPoints: 2,
@@ -154,6 +156,38 @@ export class Game {
       }
     }
     return rocks;
+  }
+
+  generateWaterCurrents(terrain: number[]): WaterCurrent[] {
+    const currents: WaterCurrent[] = [];
+    const zoneW = WORLD_W / 5;
+
+    // Zone 0 (The Shallows) — several currents with varied directions
+    const zone0Currents = [
+      // Rightward current near start — helps player move toward middle
+      { x: 150, yOff: -120, dx: 1, dy: 0.1, len: 200, w: 60, str: 80 },
+      // Upward current near coral ridge area
+      { x: 350, yOff: -180, dx: 0.3, dy: -0.95, len: 120, w: 50, str: 70 },
+      // Strong rightward current mid-zone — the main "ride" current
+      { x: 450, yOff: -100, dx: 1, dy: -0.2, len: 250, w: 70, str: 120 },
+      // Downward current near Rotjaw's area — danger zone pull
+      { x: 680, yOff: -150, dx: 0.5, dy: 0.85, len: 100, w: 45, str: 60 },
+    ];
+
+    for (const c of zone0Currents) {
+      const tx = terrain[Math.floor(Math.min(c.x, terrain.length - 1))];
+      const mag = Math.sqrt(c.dx * c.dx + c.dy * c.dy);
+      currents.push({
+        pos: { x: c.x, y: tx + c.yOff },
+        dir: { x: c.dx / mag, y: c.dy / mag },
+        length: c.len,
+        width: c.w,
+        strength: c.str,
+        zone: 0,
+      });
+    }
+
+    return currents;
   }
 
   generateAirBubbles(terrain: number[]): AirBubble[] {
@@ -466,10 +500,29 @@ export class Game {
 
     p.vel.x += ax * dt;
     p.vel.y += (ay + GRAVITY) * dt;
+
+    // Apply water current forces
+    for (const current of this.state.waterCurrents) {
+      const cx = p.pos.x + p.width / 2 - current.pos.x;
+      const cy = p.pos.y + p.height / 2 - current.pos.y;
+      // Project player position onto current direction
+      const along = cx * current.dir.x + cy * current.dir.y;
+      const perpX = cx - along * current.dir.x;
+      const perpY = cy - along * current.dir.y;
+      const perpDist = Math.sqrt(perpX * perpX + perpY * perpY);
+      // Check if player is within current bounds
+      if (along >= 0 && along <= current.length && perpDist < current.width / 2) {
+        const falloff = 1 - (perpDist / (current.width / 2));
+        const force = current.strength * falloff;
+        p.vel.x += current.dir.x * force * dt;
+        p.vel.y += current.dir.y * force * dt;
+      }
+    }
+
     p.vel.x *= 1 - WATER_DRAG * dt;
     p.vel.y *= 1 - WATER_DRAG * dt;
 
-    const maxSpeed = SWIM_SPEED * speedMult;
+    const maxSpeed = SWIM_SPEED * speedMult * 1.8; // Allow higher speed when riding currents
     const speed = Math.sqrt(p.vel.x ** 2 + p.vel.y ** 2);
     if (speed > maxSpeed) {
       p.vel.x = (p.vel.x / speed) * maxSpeed;
@@ -1713,6 +1766,7 @@ export class Game {
     this.renderParallaxLayers(ctx, cam);
     this.renderTerrain(ctx, cam);
     this.renderCorruptionTendrils(ctx, cam);
+    this.renderWaterCurrents(ctx, cam);
     this.renderKelp(ctx, cam);
     this.renderRocks(ctx, cam);
     this.renderAirBubbles(ctx, cam);
@@ -3311,6 +3365,106 @@ export class Game {
       r.radius += dt * 60; // expand speed
       return r.radius < r.maxRadius;
     });
+  }
+
+  renderWaterCurrents(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    const t = this.state.time;
+
+    for (const current of this.state.waterCurrents) {
+      const startX = current.pos.x - cam.x;
+      const startY = current.pos.y - cam.y;
+      const endX = startX + current.dir.x * current.length;
+      const endY = startY + current.dir.y * current.length;
+
+      // Skip if off-screen
+      const minX = Math.min(startX, endX) - current.width;
+      const maxX = Math.max(startX, endX) + current.width;
+      if (maxX < -20 || minX > GAME_W + 20) continue;
+
+      ctx.save();
+
+      // Draw flowing streaks along the current
+      const numStreaks = Math.floor(current.length / 20);
+      const perpX = -current.dir.y;
+      const perpY = current.dir.x;
+
+      for (let i = 0; i < numStreaks; i++) {
+        // Stagger streaks across the width and along the length
+        const lateralOffset = (((i * 7 + 3) % 5) / 4 - 0.5) * current.width * 0.8;
+        const phase = ((t * 1.5 + i * 0.4) % 1); // 0-1 cycling position along current
+        const along = phase * current.length;
+
+        const sx = startX + current.dir.x * along + perpX * lateralOffset;
+        const sy = startY + current.dir.y * along + perpY * lateralOffset;
+
+        // Streak line
+        const streakLen = 12 + Math.sin(i * 2.3) * 4;
+        const ex = sx + current.dir.x * streakLen;
+        const ey = sy + current.dir.y * streakLen;
+
+        // Fade at edges of the current
+        const edgeFade = 1 - Math.abs(lateralOffset) / (current.width * 0.5);
+        // Fade at start/end
+        const endFade = Math.min(1, along / 30, (current.length - along) / 30);
+        const alpha = 0.25 * edgeFade * endFade;
+
+        ctx.strokeStyle = `rgba(120, 200, 255, ${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        // Arrow head at end of streak
+        if (i % 2 === 0) {
+          const arrowSize = 3;
+          const ax1 = ex - current.dir.x * arrowSize + perpX * arrowSize * 0.6;
+          const ay1 = ey - current.dir.y * arrowSize + perpY * arrowSize * 0.6;
+          const ax2 = ex - current.dir.x * arrowSize - perpX * arrowSize * 0.6;
+          const ay2 = ey - current.dir.y * arrowSize - perpY * arrowSize * 0.6;
+
+          ctx.fillStyle = `rgba(120, 200, 255, ${alpha * 0.8})`;
+          ctx.beginPath();
+          ctx.moveTo(ex, ey);
+          ctx.lineTo(ax1, ay1);
+          ctx.lineTo(ax2, ay2);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Ambient glow along current center line
+      ctx.globalAlpha = 0.04 + Math.sin(t * 2) * 0.015;
+      ctx.strokeStyle = 'rgba(100, 180, 255, 1)';
+      ctx.lineWidth = current.width * 0.3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Spawn current particles periodically
+    if (Math.random() < 0.3) {
+      for (const current of this.state.waterCurrents) {
+        if (Math.random() > 0.4) continue;
+        const along = Math.random() * current.length;
+        const perpOff = (Math.random() - 0.5) * current.width * 0.7;
+        const perpX = -current.dir.y;
+        const perpY = current.dir.x;
+        const px = current.pos.x + current.dir.x * along + perpX * perpOff;
+        const py = current.pos.y + current.dir.y * along + perpY * perpOff;
+        this.state.particles.push({
+          pos: { x: px, y: py },
+          vel: { x: current.dir.x * current.strength * 0.5, y: current.dir.y * current.strength * 0.5 },
+          lifetime: 0.8, maxLifetime: 0.8, size: 1 + Math.random(),
+          color: `rgba(120, 200, 255, ${0.15 + Math.random() * 0.1})`,
+          type: 'current',
+        });
+      }
+    }
   }
 
   renderRipples(ctx: CanvasRenderingContext2D) {
