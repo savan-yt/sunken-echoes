@@ -1747,6 +1747,11 @@ export class Game {
       this.renderZoneTransition(ctx);
     }
 
+    // Dialogue overlay
+    if (this.state.activeDialogue) {
+      this.renderDialogueOverlay(ctx);
+    }
+
     // Death sequence overlay
     if (this.deathActive) {
       this.renderDeathOverlay(ctx);
