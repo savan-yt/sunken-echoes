@@ -163,6 +163,8 @@ export class Game {
         animTimer: 0,
         corruptionPulse: Math.random() * Math.PI * 2,
         xpValue: tmpl.xpValue,
+        poisonTimer: 0,
+        poisonDamage: 0,
       });
     }
 
@@ -198,6 +200,8 @@ export class Game {
       animFrame: 0,
       animTimer: 0,
       corruptionPulse: 0,
+      poisonTimer: 0,
+      poisonDamage: 0,
     });
 
     return creatures;
@@ -462,6 +466,12 @@ export class Game {
             c.hp -= proj.damage;
             c.state = 'chase';
             this.spawnDamageParticles(c.pos.x + c.width / 2, c.pos.y + c.height / 2, proj.type === 'harpoon_crit');
+            this.spawnDamageNumber(c.pos.x + c.width / 2, c.pos.y, proj.damage, proj.type === 'harpoon_crit' ? '#ffdd44' : '#ffffff');
+            // Venomous Harpoon poison
+            if (this.hasEquippedGear('venomous_harpoon')) {
+              c.poisonTimer = 4;
+              c.poisonDamage = 3;
+            }
             if (c.hp <= 0) this.killCreature(c);
             return false;
           }
@@ -474,6 +484,7 @@ export class Game {
           p.hp -= dmg;
           p.invincible = 0.5;
           this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
+          this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
           if (p.hp <= 0) {
             this.state.gameOver = true;
             this.callbacks.onPlayerDeath();
@@ -642,11 +653,13 @@ export class Game {
       if (dist < 40 && p.invincible <= 0) {
         const chargeDmg = Math.floor(bossCreature.damage * 1.5);
         const defense = this.getStatBonus('defense');
-        p.hp -= Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
+        const finalChargeDmg = Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
+        p.hp -= finalChargeDmg;
         p.invincible = 0.8;
         p.vel.x += boss.chargeDir.x * 150;
         p.vel.y += boss.chargeDir.y * 80;
         this.spawnDamageParticles(p.pos.x, p.pos.y, false);
+        this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, finalChargeDmg, '#ff4444');
       }
 
       if (boss.chargeTimer <= 0) {
@@ -690,6 +703,7 @@ export class Game {
             p.hp -= dmg;
             p.invincible = 0.3;
             this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
+            this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
             if (p.hp <= 0) {
               this.state.gameOver = true;
               this.callbacks.onPlayerDeath();
@@ -766,6 +780,25 @@ export class Game {
         c.animTimer = 0;
       }
 
+      // Poison DOT
+      if (c.poisonTimer > 0 && c.state !== 'dead') {
+        c.poisonTimer -= dt;
+        const tickInterval = 0.5;
+        if (Math.floor((c.poisonTimer + dt) / tickInterval) > Math.floor(c.poisonTimer / tickInterval)) {
+          c.hp -= c.poisonDamage;
+          this.spawnDamageNumber(c.pos.x + c.width / 2, c.pos.y, c.poisonDamage, '#44ff44');
+          // Poison drip particles
+          this.state.particles.push({
+            pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+            vel: { x: (Math.random() - 0.5) * 20, y: -15 - Math.random() * 10 },
+            lifetime: 0.6, maxLifetime: 0.6, size: 2,
+            color: '#44ff44', type: 'poison',
+          });
+          if (c.hp <= 0) this.killCreature(c);
+        }
+        if (c.poisonTimer <= 0) { c.poisonTimer = 0; c.poisonDamage = 0; }
+      }
+
       if (c.state === 'dead') {
         c.deathTimer -= dt;
         if (c.deathTimer <= 0) {
@@ -817,6 +850,7 @@ export class Game {
           p.invincible = 0.5;
           c.attackCooldown = 1;
           this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
+          this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
           if (p.hp <= 0) {
             this.state.gameOver = true;
             this.callbacks.onPlayerDeath();
@@ -1043,6 +1077,16 @@ export class Game {
         color: isCrit ? '#ffdd44' : '#ff4444', type: 'damage',
       });
     }
+  }
+
+  spawnDamageNumber(x: number, y: number, damage: number, color: string, prefix = '-') {
+    this.state.particles.push({
+      pos: { x: x + (Math.random() - 0.5) * 16, y: y - 10 },
+      vel: { x: (Math.random() - 0.5) * 20, y: -40 - Math.random() * 20 },
+      lifetime: 1.0, maxLifetime: 1.0, size: damage >= 20 ? 12 : 10,
+      color, type: 'damage_text',
+      text: `${prefix}${damage}`,
+    });
   }
 
   // ================ RENDERING ================
@@ -1987,6 +2031,20 @@ export class Game {
         ctx.shadowBlur = 6;
         ctx.fillText('+30% O₂', sx, sy);
         ctx.shadowBlur = 0;
+      } else if (p.type === 'damage_text') {
+        const scale = 1 + (1 - alpha) * 0.3;
+        ctx.font = `bold ${Math.floor(p.size * scale)}px "Press Start 2P", monospace`;
+        ctx.fillStyle = p.color;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(p.text || '', sx, sy);
+        ctx.shadowBlur = 0;
+      } else if (p.type === 'poison') {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
+        ctx.globalAlpha = alpha * 0.5;
+        ctx.fillRect(sx - p.size, sy - p.size, p.size * 2, p.size * 2);
       } else {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
       }
