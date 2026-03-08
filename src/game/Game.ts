@@ -34,10 +34,18 @@ export class Game {
   running = false;
   // Screen effects
   screenShake: { intensity: number; duration: number; timer: number } = { intensity: 0, duration: 0, timer: 0 };
-  damageFlash = 0; // red flash timer
-  helmetCracks = 0; // accumulated crack level 0-5
-  deathSequence = 0; // death animation timer
+  damageFlash = 0;
+  helmetCracks = 0;
+  deathSequence = 0;
   deathActive = false;
+  // Boss intro cinematic
+  bossIntroTimer = 0;
+  bossIntroActive = false;
+  // Zone transition
+  zoneTransitionTimer = 0;
+  zoneTransitionName = '';
+  zoneTransitionDepth = 0;
+  prevZone = 0;
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
