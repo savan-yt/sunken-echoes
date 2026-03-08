@@ -91,6 +91,8 @@ export class Game {
     player.quickslots[0] = { item: ITEMS.rusty_harpoon, count: 1 };
     player.inventory[0] = { item: ITEMS.oxygen_canister, count: 2 };
 
+    const npcs = this.spawnNPCs(terrain);
+
     return {
       player, creatures, projectiles: [], droppedItems: [],
       airBubbles, particles: [], camera: { x: 0, y: 0 },
@@ -107,6 +109,8 @@ export class Game {
       },
       memoryFragments: [],
       memoryCollected: null,
+      npcs,
+      activeDialogue: null,
       skills: {
         levels: { diving: 0, combat: 0, stealth: 0, crafting: 0, resilience: 0 },
         skillPoints: 2,
