@@ -719,6 +719,9 @@ export class Game {
             p.invincible = 0.3;
             this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
             this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
+            this.triggerScreenShake(4, 0.2);
+            this.damageFlash = 0.15;
+            this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
             if (p.hp <= 0) {
               this.state.gameOver = true;
               this.callbacks.onPlayerDeath();
