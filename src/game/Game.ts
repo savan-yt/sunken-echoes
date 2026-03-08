@@ -286,7 +286,10 @@ export class Game {
 
     if (!this.state.paused && !this.state.gameOver) {
       this.update(dt);
+    } else if (this.deathActive) {
+      this.updateDeathSequence(dt);
     }
+    this.updateScreenShake(dt);
     this.render();
     this.state.time += dt;
     this.animFrame = requestAnimationFrame(this.loop);
