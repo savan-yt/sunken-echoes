@@ -1049,6 +1049,16 @@ export class Game {
     }
   }
 
+  spawnDamageNumber(x: number, y: number, damage: number, color: string, prefix = '-') {
+    this.state.particles.push({
+      pos: { x: x + (Math.random() - 0.5) * 16, y: y - 10 },
+      vel: { x: (Math.random() - 0.5) * 20, y: -40 - Math.random() * 20 },
+      lifetime: 1.0, maxLifetime: 1.0, size: damage >= 20 ? 12 : 10,
+      color, type: 'damage_text',
+      text: `${prefix}${damage}`,
+    });
+  }
+
   // ================ RENDERING ================
 
   render() {
