@@ -2557,6 +2557,19 @@ export class Game {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(-p.size / 4, -p.size / 4, p.size / 2, p.size / 2);
         ctx.restore();
+      } else if (p.type === 'wake') {
+        // Wake trail — fading horizontal streaks
+        ctx.fillStyle = p.color;
+        ctx.fillRect(sx - p.size * 2, sy - 0.5, p.size * 4, 1);
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.fillRect(sx - p.size * 3, sy - 1, p.size * 6, 2);
+      } else if (p.type === 'ripple') {
+        // Concentric ripple ring
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(sx, sy, p.size, 0, Math.PI * 2);
+        ctx.stroke();
       } else {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
       }
