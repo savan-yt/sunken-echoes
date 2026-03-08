@@ -4024,28 +4024,7 @@ export class Game {
     this.callbacks.onStateUpdate({ ...this.state });
   }
 
-  addToInventory(item: ItemDef, count: number) {
-    const p = this.state.player;
-    // Try stacking first
-    if (item.stackable) {
-      for (const slot of p.inventory) {
-        if (slot && slot.item.id === item.id && slot.count < item.maxStack) {
-          const canAdd = Math.min(count, item.maxStack - slot.count);
-          slot.count += canAdd;
-          count -= canAdd;
-          if (count <= 0) return;
-        }
-      }
-    }
-    // Add to empty slots
-    while (count > 0) {
-      const emptyIdx = p.inventory.findIndex(s => s === null);
-      if (emptyIdx === -1) break;
-      const addCount = item.stackable ? Math.min(count, item.maxStack) : 1;
-      p.inventory[emptyIdx] = { item, count: addCount };
-      count -= addCount;
-    }
-  }
+  // addToInventory already defined above
 
   renderNPCs(ctx: CanvasRenderingContext2D, cam: Vec2) {
     const p = this.state.player;
