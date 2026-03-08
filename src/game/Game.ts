@@ -753,16 +753,21 @@ export class Game {
       }
     }
 
-    // Boss-specific death
-    if (c.id === 'boss_rotjaw') {
+    // Boss-specific death — handles all bosses
+    const bossTemplateMap: Record<string, any> = {
+      boss_rotjaw: BOSS_TEMPLATES.rotjaw,
+      boss_tangle: BOSS_TEMPLATES.the_tangle,
+      boss_subject_zero: BOSS_TEMPLATES.subject_zero,
+    };
+    const bossTmpl = bossTemplateMap[c.id];
+    if (bossTmpl) {
       this.state.boss.defeated = true;
       this.state.boss.active = false;
-      const tmpl = BOSS_TEMPLATES.rotjaw;
       this.state.memoryFragments.push({
         pos: { x: cx, y: c.pos.y },
         vel: { x: 0, y: -15 },
         lifetime: 60, bobOffset: 0, collected: false, collectTimer: 0,
-        title: tmpl.memoryFragment.title, text: tmpl.memoryFragment.text,
+        title: bossTmpl.memoryFragment.title, text: bossTmpl.memoryFragment.text,
       });
       // Massive multi-ring shockwave
       for (let ring = 0; ring < 3; ring++) {
@@ -775,7 +780,6 @@ export class Game {
           type: 'shockwave',
         });
       }
-      // Boss memory particles
       for (let i = 0; i < 25; i++) {
         this.state.particles.push({
           pos: { x: cx, y: cy },
