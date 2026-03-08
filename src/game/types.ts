@@ -246,6 +246,45 @@ export interface SkillState {
   unlockedSkills: string[]; // skill node IDs
 }
 
+// ======== NPC SYSTEM ========
+
+export interface DialogueLine {
+  speaker: string;
+  text: string;
+  icon: string;
+}
+
+export interface DialogueNode {
+  id: string;
+  lines: DialogueLine[];
+  choices?: { label: string; nextId: string }[];
+  reward?: { itemId: string; count: number };
+  unlockRecipe?: string;
+  onComplete?: string; // flag set when this node completes
+}
+
+export interface NPCDef {
+  id: string;
+  name: string;
+  icon: string;
+  zone: number;
+  xOffset: number; // offset within zone as fraction 0-1
+  spriteType: string;
+  dialogue: DialogueNode[];
+  color: string;
+}
+
+export interface NPCState {
+  id: string;
+  def: NPCDef;
+  pos: Vec2;
+  interacting: boolean;
+  currentDialogue: string | null; // current node id
+  currentLine: number;
+  completedNodes: string[];
+  bobble: number;
+}
+
 export interface GameState {
   player: Player;
   creatures: Creature[];
@@ -269,7 +308,9 @@ export interface GameState {
   depthZone: number; // 0-4
   boss: BossState;
   memoryFragments: MemoryFragment[];
-  memoryCollected: { title: string; text: string } | null; // currently showing
+  memoryCollected: { title: string; text: string } | null;
+  npcs: NPCState[];
+  activeDialogue: { npcId: string; nodeId: string; lineIndex: number } | null;
 }
 
 export interface GameCallbacks {
@@ -278,6 +319,8 @@ export interface GameCallbacks {
   onPlayerDeath: () => void;
   onCreatureKill: (name: string) => void;
   onMemoryFragment: (title: string, text: string) => void;
+  onNPCDialogue?: (npcId: string, node: DialogueNode, lineIndex: number) => void;
+  onNPCDialogueEnd?: (npcId: string) => void;
 }
 
 export const RARITY_COLORS: Record<Rarity, string> = {

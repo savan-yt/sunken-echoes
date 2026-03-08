@@ -1,4 +1,4 @@
-import { ItemDef, LootEntry } from './types';
+import { ItemDef, LootEntry, NPCDef } from './types';
 
 export const ITEMS: Record<string, ItemDef> = {
   rusty_harpoon: {
@@ -369,3 +369,126 @@ export const ZONE_CREATURES: Record<number, string[]> = {
   3: ['corrupted_fish', 'corrupted_eel', 'corrupted_shark', 'abyssal_crab'], // abyss reuses some
   4: ['corrupted_shark', 'abyssal_crab', 'corrupted_specimen'], // core has toughest
 };
+
+// ======== NPC DEFINITIONS ========
+
+export const NPC_DEFS: NPCDef[] = [
+  {
+    id: 'mara',
+    name: 'Mara',
+    icon: '🤿',
+    zone: 0,
+    xOffset: 0.55, // middle of Zone 0
+    spriteType: 'mara',
+    color: 'hsl(195, 80%, 60%)',
+    dialogue: [
+      {
+        id: 'mara_intro',
+        lines: [
+          { speaker: 'Mara', text: "Hey! You're alive? I thought I was the only one left down here.", icon: '🤿' },
+          { speaker: 'Mara', text: "My dive boat sank three days ago. Or was it three weeks? Hard to tell without sunlight.", icon: '🤿' },
+          { speaker: 'Mara', text: "The creatures... they weren't always like this. Something changed them. Something from deeper down.", icon: '🤿' },
+          { speaker: 'Mara', text: "Take this oxygen canister. You'll need it more than me. And here — a reinforced harpoon tip I salvaged.", icon: '🤿' },
+        ],
+        reward: { itemId: 'oxygen_canister', count: 3 },
+      },
+      {
+        id: 'mara_advice',
+        lines: [
+          { speaker: 'Mara', text: "If you're heading deeper, watch for the kelp forests. Things hide in there.", icon: '🤿' },
+          { speaker: 'Mara', text: "The anglerfish lure you in with their light. Don't fall for it.", icon: '🤿' },
+          { speaker: 'Mara', text: "I found some scrap metal near the wreck. Maybe you can craft something useful from it.", icon: '🤿' },
+        ],
+        reward: { itemId: 'scrap_metal', count: 5 },
+      },
+      {
+        id: 'mara_farewell',
+        lines: [
+          { speaker: 'Mara', text: "Still alive? Good. I'll stay here and keep the signal fire going.", icon: '🤿' },
+          { speaker: 'Mara', text: "If you find a way out... come back for me. Please.", icon: '🤿' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'dr_hess',
+    name: 'Dr. Hess',
+    icon: '🔬',
+    zone: 1,
+    xOffset: 0.5,
+    spriteType: 'dr_hess',
+    color: 'hsl(120, 50%, 55%)',
+    dialogue: [
+      {
+        id: 'hess_intro',
+        lines: [
+          { speaker: 'Dr. Hess', text: "Ah, a survivor. How delightful. I was beginning to think my research subjects had all... expired.", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "I'm Dr. Hess. Marine biology. Well, it was marine biology. Now it's more like... survival biology.", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "The corruption spreads from the labs below. We created it. An attempt to harness bioluminescence for energy.", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "It worked too well. The organisms adapted. Evolved. Became... hostile.", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "Here, let me upgrade your harpoon. A little modification I developed. Kelp-fiber reinforcement.", icon: '🔬' },
+        ],
+        reward: { itemId: 'kelp_membrane', count: 3 },
+      },
+      {
+        id: 'hess_lore',
+        lines: [
+          { speaker: 'Dr. Hess', text: "Subject Zero... that was our first success. A diver who volunteered for the enhancement trials.", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "The corruption bonded with their nervous system. Made them stronger. Faster. But the mind...", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "The mind fractured. They forgot who they were. Just a shell driven by the corruption.", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "Take these bio-cells. You'll need them for the lab security systems.", icon: '🔬' },
+        ],
+        reward: { itemId: 'bio_cell', count: 2 },
+      },
+      {
+        id: 'hess_warning',
+        lines: [
+          { speaker: 'Dr. Hess', text: "The labs below... they're not abandoned. The security drones still patrol. And the specimens...", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "Subject Zero guards the deepest sector. If you encounter it, aim for the exposed core.", icon: '🔬' },
+          { speaker: 'Dr. Hess', text: "And one more thing — don't trust your memories down there. The corruption can create false ones.", icon: '🔬' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'subject_7',
+    name: 'Subject 7',
+    icon: '💉',
+    zone: 2,
+    xOffset: 0.4,
+    spriteType: 'subject_7',
+    color: 'hsl(270, 70%, 60%)',
+    dialogue: [
+      {
+        id: 's7_intro',
+        lines: [
+          { speaker: '???', text: "You... I know you. No. I don't. Do I?", icon: '💉' },
+          { speaker: 'Subject 7', text: "They called me Subject 7. I had a name before. It's in here somewhere, drowning.", icon: '💉' },
+          { speaker: 'Subject 7', text: "The corruption... it's inside me too. But I can still think. Mostly. For now.", icon: '💉' },
+          { speaker: 'Subject 7', text: "I stole this from the lab. Antitoxin. It slows the corruption. Take some.", icon: '💉' },
+        ],
+        reward: { itemId: 'antitoxin', count: 3 },
+      },
+      {
+        id: 's7_memory',
+        lines: [
+          { speaker: 'Subject 7', text: "I remember... signing a form. Consent, they called it. Dr. Hess was there.", icon: '💉' },
+          { speaker: 'Subject 7', text: "He said it would be fine. Enhancement. Better oxygen processing. Stronger bones.", icon: '💉' },
+          { speaker: 'Subject 7', text: "They didn't tell us about the voices. The hunger. The way you start to forget...", icon: '💉' },
+          { speaker: 'Subject 7', text: "Your face... it reminds me of someone. Subject 1? No... that was someone else.", icon: '💉' },
+          { speaker: 'Subject 7', text: "Take this specimen fluid. Subject Zero is weak to its own mutation. Use it.", icon: '💉' },
+        ],
+        reward: { itemId: 'specimen_fluid', count: 2 },
+      },
+      {
+        id: 's7_truth',
+        lines: [
+          { speaker: 'Subject 7', text: "I found a file. My file. It says I volunteered. But I remember being dragged.", icon: '💉' },
+          { speaker: 'Subject 7', text: "There were twelve of us. Subjects 1 through 12. I'm the only one left.", icon: '💉' },
+          { speaker: 'Subject 7', text: "Except Zero. Zero was different. Zero was the prototype. The first one they broke.", icon: '💉' },
+          { speaker: 'Subject 7', text: "If you reach the Core... destroy the source. End this. For all of us.", icon: '💉' },
+        ],
+      },
+    ],
+  },
+];
