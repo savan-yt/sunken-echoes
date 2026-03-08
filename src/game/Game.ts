@@ -686,7 +686,7 @@ export class Game {
           const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
           if (cdist < bossCreature.attackRange * 2 && p.invincible <= 0) {
             const defense = this.getStatBonus('defense');
-            const dmg = Math.max(1, Math.floor(bossCreature.damage * 0.8) - defense);
+            const dmg = Math.max(1, Math.floor((bossCreature.damage * 0.8 - defense) * (1 - this.getGearDamageReduction())));
             p.hp -= dmg;
             p.invincible = 0.3;
             this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
