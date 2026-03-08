@@ -1071,6 +1071,38 @@ export class Game {
     this.state.camera.y = Math.max(0, Math.min(WORLD_H - GAME_H, this.state.camera.y));
   }
 
+  triggerScreenShake(intensity: number, duration: number) {
+    if (intensity > this.screenShake.intensity) {
+      this.screenShake = { intensity, duration, timer: duration };
+    }
+  }
+
+  updateScreenShake(dt: number) {
+    if (this.screenShake.timer > 0) {
+      this.screenShake.timer -= dt;
+      if (this.screenShake.timer <= 0) {
+        this.screenShake.intensity = 0;
+      }
+    }
+    if (this.damageFlash > 0) this.damageFlash -= dt;
+  }
+
+  updateDeathSequence(dt: number) {
+    this.deathSequence += dt;
+    // Slow ambient particles
+    this.updateParticles(dt * 0.5);
+  }
+
+  getScreenShakeOffset(): Vec2 {
+    if (this.screenShake.timer <= 0) return { x: 0, y: 0 };
+    const t = this.screenShake.timer / this.screenShake.duration;
+    const i = this.screenShake.intensity * t;
+    return {
+      x: Math.round((Math.random() - 0.5) * i * 2),
+      y: Math.round((Math.random() - 0.5) * i * 2),
+    };
+  }
+
   aabb(a: { pos: Vec2; width: number; height: number }, b: { pos: Vec2; width: number; height: number }) {
     return a.pos.x < b.pos.x + b.width && a.pos.x + a.width > b.pos.x &&
       a.pos.y < b.pos.y + b.height && a.pos.y + a.height > b.pos.y;
