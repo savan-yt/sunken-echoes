@@ -2805,6 +2805,255 @@ export class Game {
     }
   }
 
+  renderCreatureDeathAnims(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    for (const c of this.state.creatures) {
+      if (c.state !== 'dead') continue;
+      const sx = c.pos.x - cam.x;
+      const sy = c.pos.y - cam.y;
+      if (sx < -60 || sx > GAME_W + 60) continue;
+
+      const deathProgress = 1 - Math.max(0, c.deathTimer / (c.spriteType === 'rotjaw' ? 5 : c.spriteType === 'shark' ? 3 : c.spriteType === 'crab' ? 2.5 : c.spriteType === 'eel' ? 2 : 1.5));
+
+      ctx.save();
+
+      switch (c.spriteType) {
+        case 'shark':
+        case 'rotjaw': {
+          // Barrel roll descent — rotating and sinking
+          const rollAngle = deathProgress * Math.PI * 4; // 2 full rotations
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          ctx.rotate(rollAngle);
+          ctx.globalAlpha = 1 - deathProgress;
+          if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          break;
+        }
+        case 'jelly': {
+          // Flash and dissolve — shrink + flash white
+          const shrink = 1 - deathProgress * 0.8;
+          const flash = Math.sin(deathProgress * 30) > 0 ? 0.5 : 0;
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          ctx.scale(shrink, shrink);
+          ctx.globalAlpha = (1 - deathProgress) * 0.8;
+          if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          // White flash overlay
+          if (flash > 0 && deathProgress < 0.5) {
+            ctx.fillStyle = `rgba(200, 200, 255, ${flash})`;
+            ctx.fillRect(-c.width / 2, -c.height / 2, c.width, c.height);
+          }
+          break;
+        }
+        case 'eel': {
+          // Segmented dissolve — breaks apart
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          ctx.globalAlpha = 1 - deathProgress;
+          // Scatter segments apart
+          const scatter = deathProgress * 15;
+          for (let seg = 0; seg < 3; seg++) {
+            ctx.save();
+            ctx.translate(
+              (seg - 1) * scatter * (seg % 2 === 0 ? 1 : -1),
+              (seg - 1) * scatter * 0.5
+            );
+            ctx.globalAlpha = Math.max(0, 1 - deathProgress - seg * 0.2);
+            ctx.fillStyle = `rgb(${50 + seg * 15}, ${90 + seg * 20}, ${50 + seg * 15})`;
+            const segW = c.width / 3;
+            ctx.fillRect(-segW / 2, -c.height / 4, segW, c.height / 2);
+            ctx.restore();
+          }
+          break;
+        }
+        case 'crab': {
+          // Shell cracks open, collapses flat
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          ctx.globalAlpha = 1 - deathProgress * 0.7;
+          // Flatten vertically
+          ctx.scale(1 + deathProgress * 0.3, 1 - deathProgress * 0.6);
+          if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          // Crack lines
+          if (deathProgress > 0.2) {
+            ctx.strokeStyle = `rgba(255, 180, 50, ${deathProgress})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-c.width / 4, -c.height / 2);
+            ctx.lineTo(c.width / 4, c.height / 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(c.width / 4, -c.height / 2);
+            ctx.lineTo(-c.width / 4, c.height / 2);
+            ctx.stroke();
+          }
+          break;
+        }
+        default: {
+          // Fish: pop apart — quick dissolve
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          const popScale = deathProgress < 0.1 ? 1 + deathProgress * 3 : Math.max(0, 1 - (deathProgress - 0.1) * 1.2);
+          ctx.scale(popScale, popScale);
+          ctx.globalAlpha = Math.max(0, 1 - deathProgress * 1.5);
+          if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          break;
+        }
+      }
+
+      ctx.restore();
+    }
+  }
+
+  renderBossIntro(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    const t = 3.0 - this.bossIntroTimer; // time since intro started
+    const boss = this.state.creatures.find(c => c.id === 'boss_rotjaw');
+    if (!boss) return;
+
+    // Screen dim — spotlight effect
+    const dimAlpha = t < 0.5 ? t * 0.8 : t > 2.5 ? Math.max(0, (3.0 - t) * 0.8) : 0.4;
+    ctx.fillStyle = `rgba(0, 0, 0, ${dimAlpha})`;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+    // Spotlight on boss
+    if (t > 0.3 && t < 2.7) {
+      const bx = boss.pos.x - cam.x + boss.width / 2;
+      const by = boss.pos.y - cam.y + boss.height / 2;
+      const spotRadius = 60 + Math.sin(t * 3) * 5;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      const spotGrad = ctx.createRadialGradient(bx, by, 0, bx, by, spotRadius);
+      spotGrad.addColorStop(0, `rgba(0,0,0,${dimAlpha * 0.9})`);
+      spotGrad.addColorStop(0.7, `rgba(0,0,0,${dimAlpha * 0.5})`);
+      spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = spotGrad;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+    }
+
+    // Gate bars sliding in from sides
+    if (t < 1.0) {
+      const gateProgress = Math.min(1, t * 2);
+      ctx.fillStyle = '#1a2030';
+      // Left gate
+      ctx.fillRect(0, 0, 20 * gateProgress, GAME_H);
+      // Right gate  
+      ctx.fillRect(GAME_W - 20 * gateProgress, 0, 20 * gateProgress, GAME_H);
+      // Gate slam flash
+      if (t > 0.4 && t < 0.6) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * (1 - (t - 0.4) * 5)})`;
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+      }
+    }
+
+    // Boss name reveal
+    if (t > 1.0 && t < 2.8) {
+      const nameAlpha = t < 1.5 ? (t - 1.0) * 2 : t > 2.3 ? Math.max(0, (2.8 - t) * 2) : 1;
+      ctx.globalAlpha = nameAlpha;
+
+      // Boss name
+      ctx.fillStyle = '#ff4422';
+      ctx.font = '10px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#ff0000';
+      ctx.shadowBlur = 8;
+      ctx.fillText('⚠ ROTJAW, THE CORRUPTED ⚠', GAME_W / 2, GAME_H / 2 - 30);
+
+      // Subtitle
+      ctx.fillStyle = '#aa6644';
+      ctx.font = '6px "Press Start 2P", monospace';
+      ctx.shadowBlur = 4;
+      ctx.fillText('Guardian of the Deep', GAME_W / 2, GAME_H / 2 - 15);
+
+      // HP bar slides in
+      if (t > 1.3) {
+        const barSlide = Math.min(1, (t - 1.3) * 3);
+        const barW = 300 * barSlide;
+        const bx2 = (GAME_W - barW) / 2;
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(bx2 - 2, GAME_H / 2, barW + 4, 8);
+        ctx.fillStyle = '#cc4444';
+        ctx.fillRect(bx2, GAME_H / 2 + 1, barW, 6);
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  renderZoneTransition(ctx: CanvasRenderingContext2D) {
+    const t = this.zoneTransitionTimer;
+    const totalDuration = 3.5;
+
+    // Phase 1 (3.5 → 2.5): Dissolve wipe — pixel blocks appear
+    if (t > 2.5) {
+      const wipeProgress = (totalDuration - t) / 1.0;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      // Pixel dissolve from edges — random block pattern
+      const blockSize = 12;
+      for (let bx = 0; bx < GAME_W; bx += blockSize) {
+        for (let by = 0; by < GAME_H; by += blockSize) {
+          // Use deterministic random based on position
+          const hash = Math.sin(bx * 127.1 + by * 311.7) * 43758.5453 % 1;
+          const threshold = (bx / GAME_W + by / GAME_H) * 0.5;
+          if (hash < wipeProgress * 2 - threshold) {
+            ctx.fillRect(bx, by, blockSize, blockSize);
+          }
+        }
+      }
+    }
+
+    // Phase 2 (2.5 → 1.0): Title card
+    if (t <= 2.5 && t > 1.0) {
+      const cardAlpha = t > 2.0 ? (2.5 - t) * 2 : t < 1.5 ? (t - 1.0) * 2 : 1;
+      ctx.fillStyle = `rgba(0, 0, 5, ${0.7 * cardAlpha})`;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+      ctx.globalAlpha = cardAlpha;
+
+      // Zone name with zone-specific color
+      const zoneColors = ['#66ccff', '#44ff88', '#ffcc44', '#6644ff', '#ff2244'];
+      const zone = this.state.depthZone;
+      ctx.fillStyle = zoneColors[Math.min(zone, 4)];
+      ctx.font = '12px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = zoneColors[Math.min(zone, 4)];
+      ctx.shadowBlur = 10;
+      ctx.fillText(this.zoneTransitionName.toUpperCase(), GAME_W / 2, GAME_H / 2 - 12);
+
+      // Depth reading
+      ctx.fillStyle = '#667788';
+      ctx.font = '7px "Press Start 2P", monospace';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      ctx.fillText(`Depth: ${this.zoneTransitionDepth}m`, GAME_W / 2, GAME_H / 2 + 8);
+
+      // Decorative line
+      ctx.fillStyle = `${zoneColors[Math.min(zone, 4)]}88`;
+      const lineW = 100 * cardAlpha;
+      ctx.fillRect(GAME_W / 2 - lineW / 2, GAME_H / 2 - 2, lineW, 1);
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    // Phase 3 (1.0 → 0): Dissolve wipe out — blocks disappear
+    if (t <= 1.0 && t > 0) {
+      const wipeOutProgress = t / 1.0;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      const blockSize = 12;
+      for (let bx = 0; bx < GAME_W; bx += blockSize) {
+        for (let by = 0; by < GAME_H; by += blockSize) {
+          const hash = Math.sin(bx * 127.1 + by * 311.7) * 43758.5453 % 1;
+          const threshold = 1 - (bx / GAME_W + by / GAME_H) * 0.5;
+          if (hash < wipeOutProgress * 2 - (1 - threshold)) {
+            ctx.fillRect(bx, by, blockSize, blockSize);
+          }
+        }
+      }
+    }
+  }
+
   // Public methods for UI
   moveInventoryToQuickslot(invIndex: number, qsIndex: number) {
     const p = this.state.player;
