@@ -320,6 +320,7 @@ export interface GameState {
   memoryCollected: { title: string; text: string } | null;
   npcs: NPCState[];
   activeDialogue: { npcId: string; nodeId: string; lineIndex: number } | null;
+  waterCurrents: WaterCurrent[];
 }
 
 export interface GameCallbacks {
