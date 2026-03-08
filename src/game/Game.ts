@@ -2598,6 +2598,8 @@ export class Game {
       }
     }
   }
+
+  renderMemoryFragments(ctx: CanvasRenderingContext2D, cam: Vec2) {
     for (const mf of this.state.memoryFragments) {
       if (mf.collected) continue;
       const sx = mf.pos.x - cam.x;
