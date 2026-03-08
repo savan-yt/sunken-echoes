@@ -75,6 +75,8 @@ export class Game {
     const rocks = this.generateRocks(terrain);
     const airBubbles = this.generateAirBubbles(terrain);
     const creatures = this.spawnCreatures(terrain);
+    const waterCurrents = this.generateWaterCurrents(terrain);
+    const creatures = this.spawnCreatures(terrain);
 
     const player: Player = {
       pos: { x: 100, y: terrain[100] - 60 },
