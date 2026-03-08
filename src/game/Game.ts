@@ -3755,69 +3755,90 @@ export class Game {
   renderZoneTransition(ctx: CanvasRenderingContext2D) {
     const t = this.zoneTransitionTimer;
     const totalDuration = 3.5;
+    const zone = this.state.depthZone;
+    const zoneColors = ['#66ccff', '#44ff88', '#ffcc44', '#6644ff', '#ff2244'];
+    const color = zoneColors[Math.min(zone, 4)];
 
-    // Phase 1 (3.5 → 2.5): Dissolve wipe — pixel blocks appear
+    const hashFn = (bx: number, by: number) => {
+      const v = Math.sin(bx * 127.1 + by * 311.7) * 43758.5453;
+      return v - Math.floor(v);
+    };
+
+    // Phase 1 (3.5 → 2.5): Pixel dissolve wipe IN from edges
     if (t > 2.5) {
-      const wipeProgress = (totalDuration - t) / 1.0;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      // Pixel dissolve from edges — random block pattern
-      const blockSize = 12;
+      const progress = (totalDuration - t) / 1.0;
+      const blockSize = 10;
       for (let bx = 0; bx < GAME_W; bx += blockSize) {
         for (let by = 0; by < GAME_H; by += blockSize) {
-          // Use deterministic random based on position
-          const hash = Math.sin(bx * 127.1 + by * 311.7) * 43758.5453 % 1;
-          const threshold = (bx / GAME_W + by / GAME_H) * 0.5;
-          if (hash < wipeProgress * 2 - threshold) {
+          const h = hashFn(bx, by);
+          const edgeDist = Math.min(bx / GAME_W, 1 - bx / GAME_W, by / GAME_H, 1 - by / GAME_H) * 2;
+          if (h < progress * 1.5 - edgeDist * 0.5) {
+            const alpha = Math.min(1, (progress * 1.5 - edgeDist * 0.5 - h) * 3);
+            ctx.fillStyle = `rgba(0, 0, 5, ${0.9 * alpha})`;
             ctx.fillRect(bx, by, blockSize, blockSize);
           }
         }
       }
     }
 
-    // Phase 2 (2.5 → 1.0): Title card
+    // Phase 2 (2.5 → 1.0): Title card with glow and flavor text
     if (t <= 2.5 && t > 1.0) {
       const cardAlpha = t > 2.0 ? (2.5 - t) * 2 : t < 1.5 ? (t - 1.0) * 2 : 1;
-      ctx.fillStyle = `rgba(0, 0, 5, ${0.7 * cardAlpha})`;
+      ctx.fillStyle = `rgba(0, 0, 5, ${0.85 * cardAlpha})`;
       ctx.fillRect(0, 0, GAME_W, GAME_H);
-
+      ctx.save();
       ctx.globalAlpha = cardAlpha;
-
-      // Zone name with zone-specific color
-      const zoneColors = ['#66ccff', '#44ff88', '#ffcc44', '#6644ff', '#ff2244'];
-      const zone = this.state.depthZone;
-      ctx.fillStyle = zoneColors[Math.min(zone, 4)];
-      ctx.font = '12px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.shadowColor = zoneColors[Math.min(zone, 4)];
-      ctx.shadowBlur = 10;
-      ctx.fillText(this.zoneTransitionName.toUpperCase(), GAME_W / 2, GAME_H / 2 - 12);
 
-      // Depth reading
-      ctx.fillStyle = '#667788';
+      const lineW = 120 * cardAlpha;
+      ctx.fillStyle = `${color}66`;
+      ctx.fillRect(GAME_W / 2 - lineW / 2, GAME_H / 2 - 28, lineW, 1);
+
+      ctx.font = '14px "Press Start 2P", monospace';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = color;
+      ctx.fillText(this.zoneTransitionName.toUpperCase(), GAME_W / 2, GAME_H / 2 - 8);
+      ctx.shadowBlur = 6;
+      ctx.fillText(this.zoneTransitionName.toUpperCase(), GAME_W / 2, GAME_H / 2 - 8);
+
       ctx.font = '7px "Press Start 2P", monospace';
+      ctx.fillStyle = '#8899aa';
       ctx.shadowColor = '#000';
       ctx.shadowBlur = 4;
-      ctx.fillText(`Depth: ${this.zoneTransitionDepth}m`, GAME_W / 2, GAME_H / 2 + 8);
+      ctx.fillText(`\u2014 Depth: ${this.zoneTransitionDepth}m \u2014`, GAME_W / 2, GAME_H / 2 + 12);
 
-      // Decorative line
-      ctx.fillStyle = `${zoneColors[Math.min(zone, 4)]}88`;
-      const lineW = 100 * cardAlpha;
-      ctx.fillRect(GAME_W / 2 - lineW / 2, GAME_H / 2 - 2, lineW, 1);
+      ctx.fillStyle = `${color}66`;
+      ctx.fillRect(GAME_W / 2 - lineW / 2, GAME_H / 2 + 22, lineW, 1);
 
+      const flavorTexts = [
+        'Eerie calm... something feels wrong.',
+        'The kelp closes in around you.',
+        'Flickering lights. Broken glass. Answers.',
+        'Pressure mounts. The abyss watches.',
+        'The heart of the corruption pulses.',
+      ];
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.fillStyle = `${color}88`;
       ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
+      ctx.fillText(flavorTexts[Math.min(zone, 4)], GAME_W / 2, GAME_H / 2 + 36);
+      ctx.restore();
     }
 
-    // Phase 3 (1.0 → 0): Dissolve wipe out — blocks disappear
+    // Phase 3 (1.0 → 0): Pixel dissolve wipe OUT from center
     if (t <= 1.0 && t > 0) {
-      const wipeOutProgress = t / 1.0;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      const blockSize = 12;
+      const progress = 1 - t / 1.0;
+      const blockSize = 10;
       for (let bx = 0; bx < GAME_W; bx += blockSize) {
         for (let by = 0; by < GAME_H; by += blockSize) {
-          const hash = Math.sin(bx * 127.1 + by * 311.7) * 43758.5453 % 1;
-          const threshold = 1 - (bx / GAME_W + by / GAME_H) * 0.5;
-          if (hash < wipeOutProgress * 2 - (1 - threshold)) {
+          const h = hashFn(bx, by);
+          const centerDist = Math.sqrt(
+            Math.pow((bx - GAME_W / 2) / (GAME_W / 2), 2) +
+            Math.pow((by - GAME_H / 2) / (GAME_H / 2), 2)
+          );
+          if (h > progress * 1.5 - centerDist * 0.3) {
+            const alpha = Math.min(1, (h - progress * 1.5 + centerDist * 0.3) * 3);
+            ctx.fillStyle = `rgba(0, 0, 5, ${0.9 * alpha})`;
             ctx.fillRect(bx, by, blockSize, blockSize);
           }
         }
