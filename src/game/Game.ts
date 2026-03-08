@@ -455,6 +455,10 @@ export class Game {
       return;
     }
 
+    // Update buff timers
+    if (this.corruptedElixirTimer > 0) this.corruptedElixirTimer -= dt;
+    if (this.inkSmokeTimer > 0) this.inkSmokeTimer -= dt;
+
     this.updatePlayer(dt);
     this.updateProjectiles(dt);
     this.updateCreatures(dt);
