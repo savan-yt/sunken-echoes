@@ -322,6 +322,22 @@ export class Game {
     }
   }
 
+  hasEquippedGear(itemId: string): boolean {
+    return this.state.player.quickslots.some(s => s && s.item.id === itemId);
+  }
+
+  getGearDamageReduction(): number {
+    let reduction = 0;
+    if (this.hasEquippedGear('bone_armor')) reduction += 0.15;
+    return reduction;
+  }
+
+  getGearOxygenReduction(): number {
+    let reduction = 0;
+    if (this.hasEquippedGear('pressure_suit')) reduction += 0.20;
+    return reduction;
+  }
+
   updatePlayer(dt: number) {
     const p = this.state.player;
     let ax = 0, ay = 0;
