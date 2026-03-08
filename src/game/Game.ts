@@ -113,6 +113,7 @@ export class Game {
       memoryCollected: null,
       npcs,
       activeDialogue: null,
+      waterCurrents,
       skills: {
         levels: { diving: 0, combat: 0, stealth: 0, crafting: 0, resilience: 0 },
         skillPoints: 2,
