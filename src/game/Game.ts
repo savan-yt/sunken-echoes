@@ -16,7 +16,7 @@ const WORLD_W = 4000;
 const WORLD_H = 1200;
 const HARPOON_SPEED = 220;
 const HARPOON_DAMAGE = 10;
-const OXYGEN_DRAIN = 2;
+const OXYGEN_DRAIN = 0.5;
 
 // Zone boundaries (by Y position)
 const ZONE_DEPTHS = [0, 240, 500, 780, 1000];
