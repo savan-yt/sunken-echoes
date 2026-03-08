@@ -546,11 +546,10 @@ export class Game {
 
   killCreature(c: Creature) {
     c.state = 'dead';
-    c.deathTimer = 2;
     this.callbacks.onCreatureKill(c.name);
     this.state.score += 10;
 
-    // Grant XP based on creature
+    // Grant XP
     const xpGain = c.xpValue || (15 + Math.floor(Math.random() * 10));
     this.state.skills.xp += xpGain;
     if (this.state.skills.xp >= 100) {
@@ -560,39 +559,169 @@ export class Game {
       this.state.skills.statPoints += 3;
     }
 
-    // Boss death — drop memory fragment
+    // ===== CREATURE-SPECIFIC DEATH ANIMATIONS =====
+    const cx = c.pos.x + c.width / 2;
+    const cy = c.pos.y + c.height / 2;
+
+    switch (c.spriteType) {
+      case 'shark':
+      case 'rotjaw': {
+        // Sharks: barrel roll descent with pixel chunks
+        c.deathTimer = c.spriteType === 'rotjaw' ? 5 : 3;
+        c.vel.y = 15; // sink
+        c.vel.x = c.facing * 10;
+        // Large pixel chunk explosion
+        for (let i = 0; i < 18; i++) {
+          const angle = (i / 18) * Math.PI * 2;
+          const speed = 30 + Math.random() * 50;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 2, maxLifetime: 2, size: 3 + Math.random() * 4,
+            color: i % 3 === 0 ? '#556070' : i % 3 === 1 ? '#ff4444' : '#443038',
+            type: 'death_chunk', rotation: Math.random() * Math.PI * 2, rotationSpeed: (Math.random() - 0.5) * 8,
+          });
+        }
+        // Blood-corruption trail
+        for (let i = 0; i < 10; i++) {
+          this.state.particles.push({
+            pos: { x: cx + (Math.random() - 0.5) * c.width, y: cy + (Math.random() - 0.5) * c.height },
+            vel: { x: (Math.random() - 0.5) * 20, y: 5 + Math.random() * 15 },
+            lifetime: 3, maxLifetime: 3, size: 2 + Math.random() * 2,
+            color: '#aa2233', type: 'corruption',
+          });
+        }
+        this.triggerScreenShake(4, 0.4);
+        break;
+      }
+      case 'jelly': {
+        // Jellyfish: burst into electric sparks
+        c.deathTimer = 1.5;
+        for (let i = 0; i < 25; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 40 + Math.random() * 80;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 0.8 + Math.random() * 0.6, maxLifetime: 1.4,
+            size: 1 + Math.random() * 2,
+            color: Math.random() > 0.3 ? '#aabbff' : '#ffffff',
+            type: 'spark',
+          });
+        }
+        // Electric arc particles
+        for (let i = 0; i < 8; i++) {
+          this.state.particles.push({
+            pos: { x: cx + (Math.random() - 0.5) * 20, y: cy + (Math.random() - 0.5) * 20 },
+            vel: { x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60 },
+            lifetime: 0.3 + Math.random() * 0.3, maxLifetime: 0.6,
+            size: 1, color: '#8866ff', type: 'spark',
+          });
+        }
+        // Brief flash
+        this.damageFlash = 0.05;
+        break;
+      }
+      case 'eel': {
+        // Eel: segmented dissolve — segments fly apart
+        c.deathTimer = 2;
+        for (let seg = 0; seg < 6; seg++) {
+          const segX = c.pos.x + seg * (c.width / 6);
+          const delay = seg * 0.1;
+          this.state.particles.push({
+            pos: { x: segX, y: cy },
+            vel: { x: (Math.random() - 0.5) * 40, y: -10 - Math.random() * 20 },
+            lifetime: 1.5 + delay, maxLifetime: 1.5 + delay, size: 4 + Math.random() * 2,
+            color: `rgb(${50 + seg * 10}, ${90 + seg * 15}, ${50 + seg * 10})`,
+            type: 'death_chunk', rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 5,
+          });
+        }
+        // Acid splash on death
+        for (let i = 0; i < 8; i++) {
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: (Math.random() - 0.5) * 50, y: 10 + Math.random() * 20 },
+            lifetime: 1.5, maxLifetime: 1.5, size: 2 + Math.random(),
+            color: '#66ff44', type: 'poison',
+          });
+        }
+        break;
+      }
+      case 'crab': {
+        // Crab: shell crack + collapse
+        c.deathTimer = 2.5;
+        // Shell fragments
+        for (let i = 0; i < 12; i++) {
+          const angle = (i / 12) * Math.PI * 2;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * (20 + Math.random() * 30), y: Math.sin(angle) * (20 + Math.random() * 30) },
+            lifetime: 2, maxLifetime: 2, size: 2 + Math.random() * 3,
+            color: i % 2 === 0 ? '#885533' : '#aa7755',
+            type: 'death_chunk', rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 4,
+          });
+        }
+        // Orange glow burst from inside
+        for (let i = 0; i < 6; i++) {
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: (Math.random() - 0.5) * 30, y: -15 - Math.random() * 15 },
+            lifetime: 1, maxLifetime: 1, size: 2,
+            color: '#ffaa44', type: 'glow',
+          });
+        }
+        break;
+      }
+      default: {
+        // Fish: pixel chunk explosion — classic burst
+        c.deathTimer = 1.5;
+        for (let i = 0; i < 15; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 30 + Math.random() * 50;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 1 + Math.random(), maxLifetime: 2, size: 2 + Math.random() * 2,
+            color: Math.random() > 0.5 ? '#884466' : '#ff4466',
+            type: 'death_chunk', rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 6,
+          });
+        }
+        break;
+      }
+    }
+
+    // Boss-specific death
     if (c.id === 'boss_rotjaw') {
       this.state.boss.defeated = true;
       this.state.boss.active = false;
-      c.deathTimer = 4; // longer death for boss
       const tmpl = BOSS_TEMPLATES.rotjaw;
       this.state.memoryFragments.push({
-        pos: { x: c.pos.x + c.width / 2, y: c.pos.y },
+        pos: { x: cx, y: c.pos.y },
         vel: { x: 0, y: -15 },
-        lifetime: 60,
-        bobOffset: 0,
-        collected: false,
-        collectTimer: 0,
-        title: tmpl.memoryFragment.title,
-        text: tmpl.memoryFragment.text,
+        lifetime: 60, bobOffset: 0, collected: false, collectTimer: 0,
+        title: tmpl.memoryFragment.title, text: tmpl.memoryFragment.text,
       });
-      // Massive boss death explosion
-      for (let i = 0; i < 30; i++) {
+      // Massive multi-ring shockwave
+      for (let ring = 0; ring < 3; ring++) {
         this.state.particles.push({
-          pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
-          vel: { x: (Math.random() - 0.5) * 120, y: (Math.random() - 0.5) * 120 },
-          lifetime: 2, maxLifetime: 2, size: 3 + Math.random() * 4,
-          color: Math.random() > 0.5 ? '#ff2244' : '#aa22ff', type: 'damage',
+          pos: { x: cx, y: cy },
+          vel: { x: 0, y: 0 },
+          lifetime: 1.5 + ring * 0.3, maxLifetime: 1.5 + ring * 0.3,
+          size: 5 + ring * 20,
+          color: ring === 0 ? '#ffffff' : ring === 1 ? '#ff4422' : '#aa22ff',
+          type: 'shockwave',
         });
       }
-      for (let i = 0; i < 20; i++) {
+      // Boss memory particles
+      for (let i = 0; i < 25; i++) {
         this.state.particles.push({
-          pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+          pos: { x: cx, y: cy },
           vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
           lifetime: 3, maxLifetime: 3, size: 2 + Math.random() * 3,
           color: '#cc88ff', type: 'memory',
         });
       }
+      this.triggerScreenShake(8, 0.6);
     }
 
     // Drop loot
@@ -611,21 +740,13 @@ export class Game {
       }
     }
 
-    // Death particles
-    for (let i = 0; i < 12; i++) {
+    // Corruption stain particles left behind
+    for (let i = 0; i < 4; i++) {
       this.state.particles.push({
-        pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
-        vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
-        lifetime: 1, maxLifetime: 1, size: 2 + Math.random() * 3,
-        color: '#ff4466', type: 'damage',
-      });
-    }
-    for (let i = 0; i < 6; i++) {
-      this.state.particles.push({
-        pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
-        vel: { x: (Math.random() - 0.5) * 50, y: (Math.random() - 0.5) * 50 },
-        lifetime: 1.5, maxLifetime: 1.5, size: 3 + Math.random() * 2,
-        color: '#aa22ff', type: 'corruption',
+        pos: { x: cx + (Math.random() - 0.5) * c.width, y: cy + c.height / 2 },
+        vel: { x: (Math.random() - 0.5) * 5, y: 0 },
+        lifetime: 8, maxLifetime: 8, size: 3 + Math.random() * 2,
+        color: '#44112244', type: 'corruption',
       });
     }
   }
