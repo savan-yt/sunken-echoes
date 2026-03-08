@@ -822,8 +822,20 @@ export class Game {
     const boss = this.state.boss;
     if (boss.defeated) return;
 
-    const bossCreature = this.state.creatures.find(c => c.id === 'boss_rotjaw');
-    if (!bossCreature || bossCreature.state === 'dead') return;
+    // Find any active boss nearby
+    const bossIds = ['boss_rotjaw', 'boss_tangle', 'boss_subject_zero'];
+    let bossCreature: Creature | undefined;
+    for (const bid of bossIds) {
+      const bc = this.state.creatures.find(c => c.id === bid && c.state !== 'dead');
+      if (!bc) continue;
+      const p = this.state.player;
+      const d = Math.sqrt((p.pos.x - bc.pos.x) ** 2 + (p.pos.y - bc.pos.y) ** 2);
+      if (d < 300 || (boss.active && boss.creatureId === bid)) {
+        bossCreature = bc;
+        break;
+      }
+    }
+    if (!bossCreature) return;
 
     const p = this.state.player;
     const dx = p.pos.x - bossCreature.pos.x;
@@ -840,7 +852,7 @@ export class Game {
       this.bossIntroActive = true;
       this.bossIntroTimer = 3.0;
 
-      // Gate slam particles (barriers closing)
+      // Gate slam particles
       const bx = bossCreature.pos.x + bossCreature.width / 2;
       const by = bossCreature.pos.y + bossCreature.height / 2;
       for (let side = -1; side <= 1; side += 2) {
@@ -853,7 +865,6 @@ export class Game {
           });
         }
       }
-      // Gate slam screen shake
       this.triggerScreenShake(6, 0.5);
 
       // Spotlight particles converging on boss
@@ -864,7 +875,8 @@ export class Game {
           pos: { x: bx + Math.cos(angle) * r, y: by + Math.sin(angle) * r },
           vel: { x: -Math.cos(angle) * 40, y: -Math.sin(angle) * 40 },
           lifetime: 2, maxLifetime: 2, size: 2,
-          color: '#ffaa44', type: 'glow',
+          color: bossCreature.spriteType === 'tangle' ? '#44ff88' : bossCreature.spriteType === 'subject_zero' ? '#ff8844' : '#ffaa44',
+          type: 'glow',
         });
       }
     }
@@ -881,7 +893,6 @@ export class Game {
       const bx = bossCreature.pos.x + bossCreature.width / 2;
       const by = bossCreature.pos.y + bossCreature.height / 2;
 
-      // SHOCKWAVE rings expanding from boss
       for (let ring = 0; ring < 2; ring++) {
         this.state.particles.push({
           pos: { x: bx, y: by },
@@ -893,7 +904,6 @@ export class Game {
         });
       }
 
-      // Phase transition particle burst
       for (let i = 0; i < 25; i++) {
         const angle = (i / 25) * Math.PI * 2;
         const speed = 60 + Math.random() * 60;
@@ -905,11 +915,9 @@ export class Game {
         });
       }
 
-      // Brief white flash
       this.damageFlash = 0.1;
       this.triggerScreenShake(8, 0.4);
 
-      // Phase 2+: gore/new limb burst
       if (newPhase >= 2) {
         for (let i = 0; i < 12; i++) {
           this.state.particles.push({
@@ -925,14 +933,30 @@ export class Game {
 
     if (boss.phaseTransition > 0) {
       boss.phaseTransition -= dt;
-      return; // brief invulnerability during transition
+      return;
     }
 
     boss.chargeCooldown -= dt;
     boss.comboCooldown -= dt;
     boss.roarTimer -= dt;
 
-    // Phase-specific boss speed multiplier
+    // Dispatch to boss-specific AI
+    switch (bossCreature.spriteType) {
+      case 'rotjaw':
+        this.updateBossRotjaw(dt, bossCreature, dist, dx, dy);
+        break;
+      case 'tangle':
+        this.updateBossTangle(dt, bossCreature, dist, dx, dy);
+        break;
+      case 'subject_zero':
+        this.updateBossSubjectZero(dt, bossCreature, dist, dx, dy);
+        break;
+    }
+  }
+
+  updateBossRotjaw(dt: number, bossCreature: Creature, dist: number, dx: number, dy: number) {
+    const boss = this.state.boss;
+    const p = this.state.player;
     const speedMult = boss.phase === 3 ? 1.5 : boss.phase === 2 ? 1.2 : 1;
     bossCreature.speed = 70 * speedMult;
 
@@ -941,8 +965,6 @@ export class Game {
       boss.chargeTimer -= dt;
       bossCreature.vel.x = boss.chargeDir.x * 180 * speedMult;
       bossCreature.vel.y = boss.chargeDir.y * 180 * speedMult;
-
-      // Charge trail particles
       if (Math.random() < 0.5) {
         this.state.particles.push({
           pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
@@ -951,23 +973,12 @@ export class Game {
           color: '#ff4422', type: 'boss_charge',
         });
       }
-
-      // Check hit during charge
       if (dist < 40 && p.invincible <= 0) {
         const chargeDmg = Math.floor(bossCreature.damage * 1.5);
         const defense = this.getStatBonus('defense');
-        const finalChargeDmg = Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
-        p.hp -= finalChargeDmg;
-        p.invincible = 0.8;
-        p.vel.x += boss.chargeDir.x * 150;
-        p.vel.y += boss.chargeDir.y * 80;
-        this.spawnDamageParticles(p.pos.x, p.pos.y, false);
-        this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, finalChargeDmg, '#ff4444');
-        this.triggerScreenShake(6, 0.3);
-        this.damageFlash = 0.2;
-        this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
+        const finalDmg = Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
+        this.dealDamageToPlayer(finalDmg, boss.chargeDir.x * 150, boss.chargeDir.y * 80);
       }
-
       if (boss.chargeTimer <= 0) {
         boss.isCharging = false;
         boss.chargeCooldown = boss.phase === 3 ? 2 : boss.phase === 2 ? 3 : 4;
@@ -975,14 +986,12 @@ export class Game {
       return;
     }
 
-    // Initiate charge attack
     if (boss.chargeCooldown <= 0 && dist < 300 && dist > 60) {
       const nd = dist || 1;
       boss.chargeDir = { x: dx / nd, y: dy / nd };
       boss.isCharging = true;
       boss.chargeTimer = 0.6;
       boss.chargeCooldown = 5;
-      // Charge windup particles
       for (let i = 0; i < 8; i++) {
         this.state.particles.push({
           pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
@@ -1006,30 +1015,15 @@ export class Game {
           if (cdist < bossCreature.attackRange * 2 && p.invincible <= 0) {
             const defense = this.getStatBonus('defense');
             const dmg = Math.max(1, Math.floor((bossCreature.damage * 0.8 - defense) * (1 - this.getGearDamageReduction())));
-            p.hp -= dmg;
-            p.invincible = 0.3;
-            this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
-            this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
-            this.triggerScreenShake(4, 0.2);
-            this.damageFlash = 0.15;
-            this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
-            if (p.hp <= 0) {
-              this.state.gameOver = true;
-              this.deathActive = true;
-              this.deathSequence = 0;
-              this.callbacks.onPlayerDeath();
-            }
+            this.dealDamageToPlayer(dmg, 0, 0);
           }
         }, hit * 300);
       }
       boss.comboCooldown = boss.phase === 3 ? 2.5 : 4;
-      boss.comboCount++;
     }
 
-    // Phase 3: fire projectiles periodically
+    // Phase 3: acid projectiles
     if (boss.phase === 3 && bossCreature.rangedCooldown <= 0 && dist < 250) {
-      const nd = dist || 1;
-      // Spread shot — 3 projectiles
       for (let i = -1; i <= 1; i++) {
         const angle = Math.atan2(dy, dx) + i * 0.25;
         this.state.projectiles.push({
@@ -1040,6 +1034,169 @@ export class Game {
         });
       }
       bossCreature.rangedCooldown = 2;
+    }
+  }
+
+  updateBossTangle(dt: number, bossCreature: Creature, dist: number, dx: number, dy: number) {
+    const boss = this.state.boss;
+    const p = this.state.player;
+    bossCreature.speed = 30;
+
+    // Phase 1: Tentacle slams targeting player position + ink clouds
+    if (boss.comboCooldown <= 0 && dist < 200) {
+      // Tentacle slam — spawn damage projectiles at player position
+      for (let i = 0; i < (boss.phase >= 2 ? 3 : 2); i++) {
+        const offset = (i - 1) * 30;
+        setTimeout(() => {
+          if (bossCreature.state === 'dead') return;
+          this.state.projectiles.push({
+            pos: { x: p.pos.x + offset, y: bossCreature.pos.y },
+            vel: { x: 0, y: 100 },
+            width: 12, height: 40, damage: bossCreature.damage,
+            lifetime: 0.8, fromPlayer: false, type: 'acid',
+          });
+          this.triggerScreenShake(3, 0.15);
+        }, i * 400);
+      }
+      boss.comboCooldown = boss.phase === 3 ? 2 : boss.phase === 2 ? 3 : 4;
+    }
+
+    // Ink cloud area denial
+    if (boss.chargeCooldown <= 0 && dist < 250) {
+      // Spawn ink cloud particles (damage zone)
+      const cx = bossCreature.pos.x + bossCreature.width / 2 + (Math.random() - 0.5) * 100;
+      const cy = bossCreature.pos.y + bossCreature.height / 2;
+      for (let i = 0; i < 10; i++) {
+        this.state.particles.push({
+          pos: { x: cx + (Math.random() - 0.5) * 30, y: cy + (Math.random() - 0.5) * 30 },
+          vel: { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 },
+          lifetime: 3, maxLifetime: 3, size: 5 + Math.random() * 5,
+          color: '#110822', type: 'corruption',
+        });
+      }
+      boss.chargeCooldown = boss.phase === 3 ? 3 : 5;
+    }
+
+    // Phase 2: Two sweeping tentacle projectiles
+    if (boss.phase >= 2 && bossCreature.rangedCooldown <= 0) {
+      for (let side = -1; side <= 1; side += 2) {
+        this.state.projectiles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2 + side * 20, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: side * 60, y: 0 },
+          width: 30, height: 6, damage: Math.floor(bossCreature.damage * 0.6),
+          lifetime: 3, fromPlayer: false, type: 'acid',
+        });
+      }
+      bossCreature.rangedCooldown = boss.phase === 3 ? 2 : 4;
+    }
+
+    // Phase 3: Ink fills arena — reduced visibility handled in render
+  }
+
+  updateBossSubjectZero(dt: number, bossCreature: Creature, dist: number, dx: number, dy: number) {
+    const boss = this.state.boss;
+    const p = this.state.player;
+    const speedMult = boss.phase === 3 ? 1.6 : boss.phase === 2 ? 1.3 : 1;
+    bossCreature.speed = 65 * speedMult;
+
+    // Erratic movement — jitter
+    if (Math.random() < 0.1) {
+      bossCreature.vel.x += (Math.random() - 0.5) * 80;
+      bossCreature.vel.y += (Math.random() - 0.5) * 60;
+    }
+
+    // Phase 1: Erratic charges + acid spit volleys
+    if (boss.chargeCooldown <= 0 && dist < 250 && dist > 40) {
+      const nd = dist || 1;
+      boss.chargeDir = { x: dx / nd, y: dy / nd };
+      boss.isCharging = true;
+      boss.chargeTimer = 0.4;
+      boss.chargeCooldown = boss.phase === 3 ? 1.5 : 3;
+
+      bossCreature.vel.x = boss.chargeDir.x * 200 * speedMult;
+      bossCreature.vel.y = boss.chargeDir.y * 200 * speedMult;
+
+      // Charge trail
+      for (let i = 0; i < 6; i++) {
+        this.state.particles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 50, y: (Math.random() - 0.5) * 50 },
+          lifetime: 0.5, maxLifetime: 0.5, size: 2,
+          color: '#ff6644', type: 'boss_charge',
+        });
+      }
+    }
+
+    if (boss.isCharging) {
+      boss.chargeTimer -= dt;
+      if (dist < 35 && p.invincible <= 0) {
+        const defense = this.getStatBonus('defense');
+        const dmg = Math.max(1, Math.floor((bossCreature.damage - defense) * (1 - this.getGearDamageReduction())));
+        this.dealDamageToPlayer(dmg, boss.chargeDir.x * 120, boss.chargeDir.y * 80);
+      }
+      if (boss.chargeTimer <= 0) boss.isCharging = false;
+    }
+
+    // Acid spit volleys
+    if (bossCreature.rangedCooldown <= 0 && dist < 200) {
+      const volleys = boss.phase >= 2 ? 5 : 3;
+      for (let i = 0; i < volleys; i++) {
+        const spread = (i - Math.floor(volleys / 2)) * 0.2;
+        const angle = Math.atan2(dy, dx) + spread;
+        this.state.projectiles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: Math.cos(angle) * 100, y: Math.sin(angle) * 100 },
+          width: 6, height: 6, damage: Math.floor(bossCreature.damage * 0.4),
+          lifetime: 2, fromPlayer: false, type: 'acid',
+        });
+      }
+      bossCreature.rangedCooldown = boss.phase === 3 ? 1.5 : 3;
+    }
+
+    // Phase 2: Core beam — sweep projectile
+    if (boss.phase >= 2 && boss.comboCooldown <= 0 && dist < 200) {
+      // Fire a continuous line of projectiles
+      const beamAngle = Math.atan2(dy, dx);
+      for (let i = 0; i < 8; i++) {
+        setTimeout(() => {
+          if (bossCreature.state === 'dead') return;
+          const sweepAngle = beamAngle + (i - 4) * 0.15;
+          this.state.projectiles.push({
+            pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+            vel: { x: Math.cos(sweepAngle) * 150, y: Math.sin(sweepAngle) * 150 },
+            width: 4, height: 4, damage: Math.floor(bossCreature.damage * 0.3),
+            lifetime: 1.5, fromPlayer: false, type: 'shock',
+          });
+        }, i * 100);
+      }
+      boss.comboCooldown = boss.phase === 3 ? 4 : 6;
+    }
+
+    // Mimic player movement briefly
+    if (boss.phase >= 1 && Math.random() < 0.02) {
+      bossCreature.vel.x = p.vel.x * 0.8;
+      bossCreature.vel.y = p.vel.y * 0.8;
+    }
+  }
+
+  dealDamageToPlayer(dmg: number, knockX: number, knockY: number) {
+    const p = this.state.player;
+    p.hp -= dmg;
+    p.invincible = 0.5;
+    if (knockX || knockY) {
+      p.vel.x += knockX;
+      p.vel.y += knockY;
+    }
+    this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
+    this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
+    this.triggerScreenShake(4, 0.2);
+    this.damageFlash = 0.15;
+    this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
+    if (p.hp <= 0) {
+      this.state.gameOver = true;
+      this.deathActive = true;
+      this.deathSequence = 0;
+      this.callbacks.onPlayerDeath();
     }
   }
 
