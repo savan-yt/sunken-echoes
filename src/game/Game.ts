@@ -281,7 +281,16 @@ export class Game {
         this.callbacks.onStateUpdate({ ...this.state });
       }
       if (down && e.key.toLowerCase() === 'e') {
-        this.useActiveQuickslot();
+        // Check for NPC interaction first
+        if (this.tryInteractNPC()) {
+          // NPC interaction handled
+        } else {
+          this.useActiveQuickslot();
+        }
+      }
+      // Advance dialogue with F or Space
+      if (down && (e.key.toLowerCase() === 'f' || e.key === ' ') && this.state.activeDialogue) {
+        this.advanceDialogue();
       }
     };
     window.addEventListener('keydown', (e) => onKey(e, true));
