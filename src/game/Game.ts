@@ -219,7 +219,7 @@ export class Game {
     }
 
     // Spawn bosses at zone boundaries (end of each zone's X range)
-    const bossX = WORLD_W / 5 * 1 - 50; // end of zone 0 (~750px)
+    const bossX = WORLD_W / 5 * 1 - 30; // near end of zone 0 (~770px)
     const bossTx = terrain[Math.floor(Math.min(bossX, terrain.length - 1))];
     creatures.push(this.createBossCreature('boss_rotjaw', BOSS_TEMPLATES.rotjaw, bossX, bossTx - 80));
 
