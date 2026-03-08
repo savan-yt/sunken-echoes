@@ -231,7 +231,7 @@ export class Game {
     return creatures;
   }
 
-  createBossCreature(bossId: string, tmpl: typeof BOSS_TEMPLATES.rotjaw, x: number, y: number): Creature {
+  createBossCreature(bossId: string, tmpl: any, x: number, y: number): Creature {
     return {
       id: bossId,
       name: tmpl.name,
