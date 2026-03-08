@@ -2550,6 +2550,11 @@ export class Game {
 
   restart() {
     this.state = this.createInitialState();
+    this.deathActive = false;
+    this.deathSequence = 0;
+    this.helmetCracks = 0;
+    this.damageFlash = 0;
+    this.screenShake = { intensity: 0, duration: 0, timer: 0 };
     this.callbacks.onStateUpdate({ ...this.state });
   }
 
