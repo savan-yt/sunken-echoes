@@ -1045,8 +1045,18 @@ export class Game {
 
       if (c.state === 'dead') {
         c.deathTimer -= dt;
+
+        // Animate dead creature movement (sinking, drifting)
+        if (c.spriteType === 'shark' || c.spriteType === 'rotjaw') {
+          c.pos.y += 12 * dt; // sink
+          c.pos.x += c.vel.x * dt * 0.5;
+          c.vel.x *= 0.98;
+        } else if (c.spriteType === 'jelly') {
+          // Float upward briefly then fade
+          c.pos.y -= 5 * dt;
+        }
+
         if (c.deathTimer <= 0) {
-          // Boss doesn't respawn
           if (c.id === 'boss_rotjaw') continue;
           const x = p.pos.x + (Math.random() > 0.5 ? 1 : -1) * (500 + Math.random() * 400);
           const clampedX = Math.max(50, Math.min(WORLD_W - 50, x));
