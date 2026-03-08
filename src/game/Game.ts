@@ -1,6 +1,6 @@
 import {
   GameState, Player, Creature, Projectile, DroppedItem, AirBubble, Particle,
-  Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment,
+  Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment, ZONE_NAMES,
 } from './types';
 import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES } from './data';
 import { RECIPES, canCraft } from './crafting';
@@ -34,10 +34,18 @@ export class Game {
   running = false;
   // Screen effects
   screenShake: { intensity: number; duration: number; timer: number } = { intensity: 0, duration: 0, timer: 0 };
-  damageFlash = 0; // red flash timer
-  helmetCracks = 0; // accumulated crack level 0-5
-  deathSequence = 0; // death animation timer
+  damageFlash = 0;
+  helmetCracks = 0;
+  deathSequence = 0;
   deathActive = false;
+  // Boss intro cinematic
+  bossIntroTimer = 0;
+  bossIntroActive = false;
+  // Zone transition
+  zoneTransitionTimer = 0;
+  zoneTransitionName = '';
+  zoneTransitionDepth = 0;
+  prevZone = 0;
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
@@ -296,6 +304,20 @@ export class Game {
   };
 
   update(dt: number) {
+    const oldZone = this.state.depthZone;
+
+    // During boss intro, only update camera and particles
+    if (this.bossIntroActive) {
+      this.bossIntroTimer -= dt;
+      this.updateCamera();
+      this.updateParticles(dt);
+      if (this.bossIntroTimer <= 0) {
+        this.bossIntroActive = false;
+      }
+      this.callbacks.onStateUpdate({ ...this.state });
+      return;
+    }
+
     this.updatePlayer(dt);
     this.updateProjectiles(dt);
     this.updateCreatures(dt);
@@ -306,8 +328,18 @@ export class Game {
     this.updateParticles(dt);
     this.updateCamera();
     this.spawnAmbientParticles(dt);
-    // Update depth zone
     this.state.depthZone = Math.min(4, Math.floor(this.state.player.pos.y / (WORLD_H / 5)));
+
+    // Zone transition detection
+    if (this.state.depthZone !== oldZone) {
+      this.zoneTransitionTimer = 3.5;
+      this.zoneTransitionName = ZONE_NAMES[this.state.depthZone] || 'Unknown';
+      this.zoneTransitionDepth = Math.floor(this.state.player.pos.y * 0.3);
+      this.prevZone = oldZone;
+    }
+
+    if (this.zoneTransitionTimer > 0) this.zoneTransitionTimer -= dt;
+
     this.callbacks.onStateUpdate({ ...this.state });
   }
 
@@ -514,11 +546,10 @@ export class Game {
 
   killCreature(c: Creature) {
     c.state = 'dead';
-    c.deathTimer = 2;
     this.callbacks.onCreatureKill(c.name);
     this.state.score += 10;
 
-    // Grant XP based on creature
+    // Grant XP
     const xpGain = c.xpValue || (15 + Math.floor(Math.random() * 10));
     this.state.skills.xp += xpGain;
     if (this.state.skills.xp >= 100) {
@@ -528,39 +559,169 @@ export class Game {
       this.state.skills.statPoints += 3;
     }
 
-    // Boss death — drop memory fragment
+    // ===== CREATURE-SPECIFIC DEATH ANIMATIONS =====
+    const cx = c.pos.x + c.width / 2;
+    const cy = c.pos.y + c.height / 2;
+
+    switch (c.spriteType) {
+      case 'shark':
+      case 'rotjaw': {
+        // Sharks: barrel roll descent with pixel chunks
+        c.deathTimer = c.spriteType === 'rotjaw' ? 5 : 3;
+        c.vel.y = 15; // sink
+        c.vel.x = c.facing * 10;
+        // Large pixel chunk explosion
+        for (let i = 0; i < 18; i++) {
+          const angle = (i / 18) * Math.PI * 2;
+          const speed = 30 + Math.random() * 50;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 2, maxLifetime: 2, size: 3 + Math.random() * 4,
+            color: i % 3 === 0 ? '#556070' : i % 3 === 1 ? '#ff4444' : '#443038',
+            type: 'death_chunk', rotation: Math.random() * Math.PI * 2, rotationSpeed: (Math.random() - 0.5) * 8,
+          });
+        }
+        // Blood-corruption trail
+        for (let i = 0; i < 10; i++) {
+          this.state.particles.push({
+            pos: { x: cx + (Math.random() - 0.5) * c.width, y: cy + (Math.random() - 0.5) * c.height },
+            vel: { x: (Math.random() - 0.5) * 20, y: 5 + Math.random() * 15 },
+            lifetime: 3, maxLifetime: 3, size: 2 + Math.random() * 2,
+            color: '#aa2233', type: 'corruption',
+          });
+        }
+        this.triggerScreenShake(4, 0.4);
+        break;
+      }
+      case 'jelly': {
+        // Jellyfish: burst into electric sparks
+        c.deathTimer = 1.5;
+        for (let i = 0; i < 25; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 40 + Math.random() * 80;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 0.8 + Math.random() * 0.6, maxLifetime: 1.4,
+            size: 1 + Math.random() * 2,
+            color: Math.random() > 0.3 ? '#aabbff' : '#ffffff',
+            type: 'spark',
+          });
+        }
+        // Electric arc particles
+        for (let i = 0; i < 8; i++) {
+          this.state.particles.push({
+            pos: { x: cx + (Math.random() - 0.5) * 20, y: cy + (Math.random() - 0.5) * 20 },
+            vel: { x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60 },
+            lifetime: 0.3 + Math.random() * 0.3, maxLifetime: 0.6,
+            size: 1, color: '#8866ff', type: 'spark',
+          });
+        }
+        // Brief flash
+        this.damageFlash = 0.05;
+        break;
+      }
+      case 'eel': {
+        // Eel: segmented dissolve — segments fly apart
+        c.deathTimer = 2;
+        for (let seg = 0; seg < 6; seg++) {
+          const segX = c.pos.x + seg * (c.width / 6);
+          const delay = seg * 0.1;
+          this.state.particles.push({
+            pos: { x: segX, y: cy },
+            vel: { x: (Math.random() - 0.5) * 40, y: -10 - Math.random() * 20 },
+            lifetime: 1.5 + delay, maxLifetime: 1.5 + delay, size: 4 + Math.random() * 2,
+            color: `rgb(${50 + seg * 10}, ${90 + seg * 15}, ${50 + seg * 10})`,
+            type: 'death_chunk', rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 5,
+          });
+        }
+        // Acid splash on death
+        for (let i = 0; i < 8; i++) {
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: (Math.random() - 0.5) * 50, y: 10 + Math.random() * 20 },
+            lifetime: 1.5, maxLifetime: 1.5, size: 2 + Math.random(),
+            color: '#66ff44', type: 'poison',
+          });
+        }
+        break;
+      }
+      case 'crab': {
+        // Crab: shell crack + collapse
+        c.deathTimer = 2.5;
+        // Shell fragments
+        for (let i = 0; i < 12; i++) {
+          const angle = (i / 12) * Math.PI * 2;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * (20 + Math.random() * 30), y: Math.sin(angle) * (20 + Math.random() * 30) },
+            lifetime: 2, maxLifetime: 2, size: 2 + Math.random() * 3,
+            color: i % 2 === 0 ? '#885533' : '#aa7755',
+            type: 'death_chunk', rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 4,
+          });
+        }
+        // Orange glow burst from inside
+        for (let i = 0; i < 6; i++) {
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: (Math.random() - 0.5) * 30, y: -15 - Math.random() * 15 },
+            lifetime: 1, maxLifetime: 1, size: 2,
+            color: '#ffaa44', type: 'glow',
+          });
+        }
+        break;
+      }
+      default: {
+        // Fish: pixel chunk explosion — classic burst
+        c.deathTimer = 1.5;
+        for (let i = 0; i < 15; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 30 + Math.random() * 50;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 1 + Math.random(), maxLifetime: 2, size: 2 + Math.random() * 2,
+            color: Math.random() > 0.5 ? '#884466' : '#ff4466',
+            type: 'death_chunk', rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 6,
+          });
+        }
+        break;
+      }
+    }
+
+    // Boss-specific death
     if (c.id === 'boss_rotjaw') {
       this.state.boss.defeated = true;
       this.state.boss.active = false;
-      c.deathTimer = 4; // longer death for boss
       const tmpl = BOSS_TEMPLATES.rotjaw;
       this.state.memoryFragments.push({
-        pos: { x: c.pos.x + c.width / 2, y: c.pos.y },
+        pos: { x: cx, y: c.pos.y },
         vel: { x: 0, y: -15 },
-        lifetime: 60,
-        bobOffset: 0,
-        collected: false,
-        collectTimer: 0,
-        title: tmpl.memoryFragment.title,
-        text: tmpl.memoryFragment.text,
+        lifetime: 60, bobOffset: 0, collected: false, collectTimer: 0,
+        title: tmpl.memoryFragment.title, text: tmpl.memoryFragment.text,
       });
-      // Massive boss death explosion
-      for (let i = 0; i < 30; i++) {
+      // Massive multi-ring shockwave
+      for (let ring = 0; ring < 3; ring++) {
         this.state.particles.push({
-          pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
-          vel: { x: (Math.random() - 0.5) * 120, y: (Math.random() - 0.5) * 120 },
-          lifetime: 2, maxLifetime: 2, size: 3 + Math.random() * 4,
-          color: Math.random() > 0.5 ? '#ff2244' : '#aa22ff', type: 'damage',
+          pos: { x: cx, y: cy },
+          vel: { x: 0, y: 0 },
+          lifetime: 1.5 + ring * 0.3, maxLifetime: 1.5 + ring * 0.3,
+          size: 5 + ring * 20,
+          color: ring === 0 ? '#ffffff' : ring === 1 ? '#ff4422' : '#aa22ff',
+          type: 'shockwave',
         });
       }
-      for (let i = 0; i < 20; i++) {
+      // Boss memory particles
+      for (let i = 0; i < 25; i++) {
         this.state.particles.push({
-          pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+          pos: { x: cx, y: cy },
           vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
           lifetime: 3, maxLifetime: 3, size: 2 + Math.random() * 3,
           color: '#cc88ff', type: 'memory',
         });
       }
+      this.triggerScreenShake(8, 0.6);
     }
 
     // Drop loot
@@ -579,21 +740,13 @@ export class Game {
       }
     }
 
-    // Death particles
-    for (let i = 0; i < 12; i++) {
+    // Corruption stain particles left behind
+    for (let i = 0; i < 4; i++) {
       this.state.particles.push({
-        pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
-        vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
-        lifetime: 1, maxLifetime: 1, size: 2 + Math.random() * 3,
-        color: '#ff4466', type: 'damage',
-      });
-    }
-    for (let i = 0; i < 6; i++) {
-      this.state.particles.push({
-        pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
-        vel: { x: (Math.random() - 0.5) * 50, y: (Math.random() - 0.5) * 50 },
-        lifetime: 1.5, maxLifetime: 1.5, size: 3 + Math.random() * 2,
-        color: '#aa22ff', type: 'corruption',
+        pos: { x: cx + (Math.random() - 0.5) * c.width, y: cy + c.height / 2 },
+        vel: { x: (Math.random() - 0.5) * 5, y: 0 },
+        lifetime: 8, maxLifetime: 8, size: 3 + Math.random() * 2,
+        color: '#44112244', type: 'corruption',
       });
     }
   }
@@ -610,11 +763,43 @@ export class Game {
     const dy = p.pos.y - bossCreature.pos.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Activate boss when player is near
+    // Activate boss when player is near — CINEMATIC INTRO
     if (!boss.active && dist < 250) {
       boss.active = true;
       boss.creatureId = bossCreature.id;
       bossCreature.state = 'chase';
+
+      // Trigger boss intro cinematic
+      this.bossIntroActive = true;
+      this.bossIntroTimer = 3.0;
+
+      // Gate slam particles (barriers closing)
+      const bx = bossCreature.pos.x + bossCreature.width / 2;
+      const by = bossCreature.pos.y + bossCreature.height / 2;
+      for (let side = -1; side <= 1; side += 2) {
+        for (let i = 0; i < 10; i++) {
+          this.state.particles.push({
+            pos: { x: bx + side * 200, y: by - 50 + i * 12 },
+            vel: { x: 0, y: 0 },
+            lifetime: 2.5, maxLifetime: 2.5, size: 6,
+            color: '#334455', type: 'death_chunk',
+          });
+        }
+      }
+      // Gate slam screen shake
+      this.triggerScreenShake(6, 0.5);
+
+      // Spotlight particles converging on boss
+      for (let i = 0; i < 20; i++) {
+        const angle = (i / 20) * Math.PI * 2;
+        const r = 100 + Math.random() * 50;
+        this.state.particles.push({
+          pos: { x: bx + Math.cos(angle) * r, y: by + Math.sin(angle) * r },
+          vel: { x: -Math.cos(angle) * 40, y: -Math.sin(angle) * 40 },
+          lifetime: 2, maxLifetime: 2, size: 2,
+          color: '#ffaa44', type: 'glow',
+        });
+      }
     }
 
     if (!boss.active) return;
@@ -624,15 +809,50 @@ export class Game {
     const newPhase = hpPct > 0.6 ? 1 : hpPct > 0.3 ? 2 : 3;
     if (newPhase !== boss.phase) {
       boss.phase = newPhase as 1 | 2 | 3;
-      boss.phaseTransition = 1.5;
-      // Phase transition roar — particles burst
-      for (let i = 0; i < 15; i++) {
+      boss.phaseTransition = 2.0;
+
+      const bx = bossCreature.pos.x + bossCreature.width / 2;
+      const by = bossCreature.pos.y + bossCreature.height / 2;
+
+      // SHOCKWAVE rings expanding from boss
+      for (let ring = 0; ring < 2; ring++) {
         this.state.particles.push({
-          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
-          vel: { x: (Math.random() - 0.5) * 100, y: (Math.random() - 0.5) * 100 },
+          pos: { x: bx, y: by },
+          vel: { x: 0, y: 0 },
+          lifetime: 1.2 + ring * 0.3, maxLifetime: 1.2 + ring * 0.3,
+          size: 10 + ring * 30,
+          color: newPhase === 3 ? '#ff2222' : '#ff6644',
+          type: 'shockwave',
+        });
+      }
+
+      // Phase transition particle burst
+      for (let i = 0; i < 25; i++) {
+        const angle = (i / 25) * Math.PI * 2;
+        const speed = 60 + Math.random() * 60;
+        this.state.particles.push({
+          pos: { x: bx, y: by },
+          vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
           lifetime: 1.5, maxLifetime: 1.5, size: 3 + Math.random() * 3,
           color: newPhase === 3 ? '#ff2222' : '#ff6644', type: 'boss_charge',
         });
+      }
+
+      // Brief white flash
+      this.damageFlash = 0.1;
+      this.triggerScreenShake(8, 0.4);
+
+      // Phase 2+: gore/new limb burst
+      if (newPhase >= 2) {
+        for (let i = 0; i < 12; i++) {
+          this.state.particles.push({
+            pos: { x: bx + (Math.random() - 0.5) * 30, y: by + (Math.random() - 0.5) * 20 },
+            vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+            lifetime: 2, maxLifetime: 2, size: 3 + Math.random() * 3,
+            color: '#aa2233', type: 'death_chunk',
+            rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 8,
+          });
+        }
       }
     }
 
@@ -825,8 +1045,18 @@ export class Game {
 
       if (c.state === 'dead') {
         c.deathTimer -= dt;
+
+        // Animate dead creature movement (sinking, drifting)
+        if (c.spriteType === 'shark' || c.spriteType === 'rotjaw') {
+          c.pos.y += 12 * dt; // sink
+          c.pos.x += c.vel.x * dt * 0.5;
+          c.vel.x *= 0.98;
+        } else if (c.spriteType === 'jelly') {
+          // Float upward briefly then fade
+          c.pos.y -= 5 * dt;
+        }
+
         if (c.deathTimer <= 0) {
-          // Boss doesn't respawn
           if (c.id === 'boss_rotjaw') continue;
           const x = p.pos.x + (Math.random() > 0.5 ? 1 : -1) * (500 + Math.random() * 400);
           const clampedX = Math.max(50, Math.min(WORLD_W - 50, x));
@@ -1037,6 +1267,9 @@ export class Game {
       p.lifetime -= dt;
       if (p.type === 'bubble') p.vel.y -= 10 * dt;
       if (p.type === 'corruption') { p.vel.y -= 3 * dt; p.size *= 0.995; }
+      if (p.type === 'death_chunk') { p.vel.y += 20 * dt; p.vel.x *= 0.98; }
+      if (p.type === 'spark') { p.vel.x *= 0.95; p.vel.y *= 0.95; }
+      if (p.type === 'shockwave') { /* stationary, size grows via render */ }
       return p.lifetime > 0;
     });
   }
@@ -1245,6 +1478,7 @@ export class Game {
     this.renderDroppedItems(ctx, cam);
     this.renderMemoryFragments(ctx, cam);
     this.renderCreatures(ctx, cam);
+    this.renderCreatureDeathAnims(ctx, cam);
     this.renderBossHPBar(ctx);
     this.renderPlayer(ctx, cam);
     this.renderProjectiles(ctx, cam);
@@ -1260,6 +1494,16 @@ export class Game {
     this.renderPressureEffect(ctx);
 
     ctx.filter = 'none';
+
+    // Boss intro cinematic overlay
+    if (this.bossIntroActive) {
+      this.renderBossIntro(ctx, cam);
+    }
+
+    // Zone transition overlay
+    if (this.zoneTransitionTimer > 0) {
+      this.renderZoneTransition(ctx);
+    }
 
     // Death sequence overlay
     if (this.deathActive) {
@@ -1562,11 +1806,25 @@ export class Game {
       ctx.fillStyle = auraColor;
       ctx.fillRect(-c.width / 2 - 3, -c.height / 2 - 3, c.width + 6, c.height + 6);
 
-      this.drawCreatureSprite(ctx, c);
+      // Hit stagger — brief pause visual
+      if (c.hp < c.maxHp && c.hp > 0) {
+        const dmgPct = 1 - c.hp / c.maxHp;
+        // Corruption cracks on body — expand with damage
+        if (dmgPct > 0.3) {
+          const crackAlpha = Math.min(0.8, dmgPct);
+          ctx.fillStyle = `rgba(255, 60, 40, ${crackAlpha * 0.4})`;
+          const crackCount = Math.floor(dmgPct * 5);
+          for (let i = 0; i < crackCount; i++) {
+            const cx2 = -c.width / 2 + ((i * 7 + 3) % c.width);
+            ctx.fillRect(cx2, -c.height / 2 + 2, 1, c.height - 4);
+          }
+        }
+      }
 
+      this.drawCreatureSprite(ctx, c);
       ctx.restore();
 
-      // HP bar (improved)
+      // HP bar
       if (c.hp < c.maxHp) {
         const barW = c.width + 4;
         const hpPct = c.hp / c.maxHp;
@@ -2229,6 +2487,42 @@ export class Game {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
         ctx.globalAlpha = alpha * 0.5;
         ctx.fillRect(sx - p.size, sy - p.size, p.size * 2, p.size * 2);
+      } else if (p.type === 'shockwave') {
+        // Expanding ring shockwave
+        const expandT = 1 - alpha;
+        const radius = p.size + expandT * 120;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 3 - expandT * 2;
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        // Inner fainter ring
+        ctx.globalAlpha = alpha * 0.2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius * 0.7, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (p.type === 'spark') {
+        // Electric spark — small bright flash with random jitter
+        ctx.fillStyle = p.color;
+        const jx = (Math.random() - 0.5) * 2;
+        const jy = (Math.random() - 0.5) * 2;
+        ctx.fillRect(sx + jx - 1, sy + jy - 1, 2, 2);
+        // Spark trail
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.fillRect(sx - p.vel.x * 0.01 - 1, sy - p.vel.y * 0.01 - 1, 2, 2);
+      } else if (p.type === 'death_chunk') {
+        // Rotating pixel chunk
+        ctx.save();
+        ctx.translate(sx, sy);
+        const rot = (p.rotation || 0) + (p.rotationSpeed || 0) * (p.maxLifetime - p.lifetime);
+        ctx.rotate(rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        // Detail pixel
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(-p.size / 4, -p.size / 4, p.size / 2, p.size / 2);
+        ctx.restore();
       } else {
         ctx.fillRect(sx - p.size / 2, sy - p.size / 2, p.size, p.size);
       }
@@ -2521,6 +2815,255 @@ export class Game {
       ctx.font = '6px "Press Start 2P", monospace';
       ctx.fillText('The ocean remembers nothing', GAME_W / 2, GAME_H / 2 + 10);
       ctx.globalAlpha = 1;
+    }
+  }
+
+  renderCreatureDeathAnims(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    for (const c of this.state.creatures) {
+      if (c.state !== 'dead') continue;
+      const sx = c.pos.x - cam.x;
+      const sy = c.pos.y - cam.y;
+      if (sx < -60 || sx > GAME_W + 60) continue;
+
+      const deathProgress = 1 - Math.max(0, c.deathTimer / (c.spriteType === 'rotjaw' ? 5 : c.spriteType === 'shark' ? 3 : c.spriteType === 'crab' ? 2.5 : c.spriteType === 'eel' ? 2 : 1.5));
+
+      ctx.save();
+
+      switch (c.spriteType) {
+        case 'shark':
+        case 'rotjaw': {
+          // Barrel roll descent — rotating and sinking
+          const rollAngle = deathProgress * Math.PI * 4; // 2 full rotations
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          ctx.rotate(rollAngle);
+          ctx.globalAlpha = 1 - deathProgress;
+          if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          break;
+        }
+        case 'jelly': {
+          // Flash and dissolve — shrink + flash white
+          const shrink = 1 - deathProgress * 0.8;
+          const flash = Math.sin(deathProgress * 30) > 0 ? 0.5 : 0;
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          ctx.scale(shrink, shrink);
+          ctx.globalAlpha = (1 - deathProgress) * 0.8;
+          if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          // White flash overlay
+          if (flash > 0 && deathProgress < 0.5) {
+            ctx.fillStyle = `rgba(200, 200, 255, ${flash})`;
+            ctx.fillRect(-c.width / 2, -c.height / 2, c.width, c.height);
+          }
+          break;
+        }
+        case 'eel': {
+          // Segmented dissolve — breaks apart
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          ctx.globalAlpha = 1 - deathProgress;
+          // Scatter segments apart
+          const scatter = deathProgress * 15;
+          for (let seg = 0; seg < 3; seg++) {
+            ctx.save();
+            ctx.translate(
+              (seg - 1) * scatter * (seg % 2 === 0 ? 1 : -1),
+              (seg - 1) * scatter * 0.5
+            );
+            ctx.globalAlpha = Math.max(0, 1 - deathProgress - seg * 0.2);
+            ctx.fillStyle = `rgb(${50 + seg * 15}, ${90 + seg * 20}, ${50 + seg * 15})`;
+            const segW = c.width / 3;
+            ctx.fillRect(-segW / 2, -c.height / 4, segW, c.height / 2);
+            ctx.restore();
+          }
+          break;
+        }
+        case 'crab': {
+          // Shell cracks open, collapses flat
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          ctx.globalAlpha = 1 - deathProgress * 0.7;
+          // Flatten vertically
+          ctx.scale(1 + deathProgress * 0.3, 1 - deathProgress * 0.6);
+          if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          // Crack lines
+          if (deathProgress > 0.2) {
+            ctx.strokeStyle = `rgba(255, 180, 50, ${deathProgress})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-c.width / 4, -c.height / 2);
+            ctx.lineTo(c.width / 4, c.height / 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(c.width / 4, -c.height / 2);
+            ctx.lineTo(-c.width / 4, c.height / 2);
+            ctx.stroke();
+          }
+          break;
+        }
+        default: {
+          // Fish: pop apart — quick dissolve
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          const popScale = deathProgress < 0.1 ? 1 + deathProgress * 3 : Math.max(0, 1 - (deathProgress - 0.1) * 1.2);
+          ctx.scale(popScale, popScale);
+          ctx.globalAlpha = Math.max(0, 1 - deathProgress * 1.5);
+          if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          break;
+        }
+      }
+
+      ctx.restore();
+    }
+  }
+
+  renderBossIntro(ctx: CanvasRenderingContext2D, cam: Vec2) {
+    const t = 3.0 - this.bossIntroTimer; // time since intro started
+    const boss = this.state.creatures.find(c => c.id === 'boss_rotjaw');
+    if (!boss) return;
+
+    // Screen dim — spotlight effect
+    const dimAlpha = t < 0.5 ? t * 0.8 : t > 2.5 ? Math.max(0, (3.0 - t) * 0.8) : 0.4;
+    ctx.fillStyle = `rgba(0, 0, 0, ${dimAlpha})`;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+    // Spotlight on boss
+    if (t > 0.3 && t < 2.7) {
+      const bx = boss.pos.x - cam.x + boss.width / 2;
+      const by = boss.pos.y - cam.y + boss.height / 2;
+      const spotRadius = 60 + Math.sin(t * 3) * 5;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      const spotGrad = ctx.createRadialGradient(bx, by, 0, bx, by, spotRadius);
+      spotGrad.addColorStop(0, `rgba(0,0,0,${dimAlpha * 0.9})`);
+      spotGrad.addColorStop(0.7, `rgba(0,0,0,${dimAlpha * 0.5})`);
+      spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = spotGrad;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+    }
+
+    // Gate bars sliding in from sides
+    if (t < 1.0) {
+      const gateProgress = Math.min(1, t * 2);
+      ctx.fillStyle = '#1a2030';
+      // Left gate
+      ctx.fillRect(0, 0, 20 * gateProgress, GAME_H);
+      // Right gate  
+      ctx.fillRect(GAME_W - 20 * gateProgress, 0, 20 * gateProgress, GAME_H);
+      // Gate slam flash
+      if (t > 0.4 && t < 0.6) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * (1 - (t - 0.4) * 5)})`;
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+      }
+    }
+
+    // Boss name reveal
+    if (t > 1.0 && t < 2.8) {
+      const nameAlpha = t < 1.5 ? (t - 1.0) * 2 : t > 2.3 ? Math.max(0, (2.8 - t) * 2) : 1;
+      ctx.globalAlpha = nameAlpha;
+
+      // Boss name
+      ctx.fillStyle = '#ff4422';
+      ctx.font = '10px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#ff0000';
+      ctx.shadowBlur = 8;
+      ctx.fillText('⚠ ROTJAW, THE CORRUPTED ⚠', GAME_W / 2, GAME_H / 2 - 30);
+
+      // Subtitle
+      ctx.fillStyle = '#aa6644';
+      ctx.font = '6px "Press Start 2P", monospace';
+      ctx.shadowBlur = 4;
+      ctx.fillText('Guardian of the Deep', GAME_W / 2, GAME_H / 2 - 15);
+
+      // HP bar slides in
+      if (t > 1.3) {
+        const barSlide = Math.min(1, (t - 1.3) * 3);
+        const barW = 300 * barSlide;
+        const bx2 = (GAME_W - barW) / 2;
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(bx2 - 2, GAME_H / 2, barW + 4, 8);
+        ctx.fillStyle = '#cc4444';
+        ctx.fillRect(bx2, GAME_H / 2 + 1, barW, 6);
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  renderZoneTransition(ctx: CanvasRenderingContext2D) {
+    const t = this.zoneTransitionTimer;
+    const totalDuration = 3.5;
+
+    // Phase 1 (3.5 → 2.5): Dissolve wipe — pixel blocks appear
+    if (t > 2.5) {
+      const wipeProgress = (totalDuration - t) / 1.0;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      // Pixel dissolve from edges — random block pattern
+      const blockSize = 12;
+      for (let bx = 0; bx < GAME_W; bx += blockSize) {
+        for (let by = 0; by < GAME_H; by += blockSize) {
+          // Use deterministic random based on position
+          const hash = Math.sin(bx * 127.1 + by * 311.7) * 43758.5453 % 1;
+          const threshold = (bx / GAME_W + by / GAME_H) * 0.5;
+          if (hash < wipeProgress * 2 - threshold) {
+            ctx.fillRect(bx, by, blockSize, blockSize);
+          }
+        }
+      }
+    }
+
+    // Phase 2 (2.5 → 1.0): Title card
+    if (t <= 2.5 && t > 1.0) {
+      const cardAlpha = t > 2.0 ? (2.5 - t) * 2 : t < 1.5 ? (t - 1.0) * 2 : 1;
+      ctx.fillStyle = `rgba(0, 0, 5, ${0.7 * cardAlpha})`;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+      ctx.globalAlpha = cardAlpha;
+
+      // Zone name with zone-specific color
+      const zoneColors = ['#66ccff', '#44ff88', '#ffcc44', '#6644ff', '#ff2244'];
+      const zone = this.state.depthZone;
+      ctx.fillStyle = zoneColors[Math.min(zone, 4)];
+      ctx.font = '12px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = zoneColors[Math.min(zone, 4)];
+      ctx.shadowBlur = 10;
+      ctx.fillText(this.zoneTransitionName.toUpperCase(), GAME_W / 2, GAME_H / 2 - 12);
+
+      // Depth reading
+      ctx.fillStyle = '#667788';
+      ctx.font = '7px "Press Start 2P", monospace';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      ctx.fillText(`Depth: ${this.zoneTransitionDepth}m`, GAME_W / 2, GAME_H / 2 + 8);
+
+      // Decorative line
+      ctx.fillStyle = `${zoneColors[Math.min(zone, 4)]}88`;
+      const lineW = 100 * cardAlpha;
+      ctx.fillRect(GAME_W / 2 - lineW / 2, GAME_H / 2 - 2, lineW, 1);
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    // Phase 3 (1.0 → 0): Dissolve wipe out — blocks disappear
+    if (t <= 1.0 && t > 0) {
+      const wipeOutProgress = t / 1.0;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      const blockSize = 12;
+      for (let bx = 0; bx < GAME_W; bx += blockSize) {
+        for (let by = 0; by < GAME_H; by += blockSize) {
+          const hash = Math.sin(bx * 127.1 + by * 311.7) * 43758.5453 % 1;
+          const threshold = 1 - (bx / GAME_W + by / GAME_H) * 0.5;
+          if (hash < wipeOutProgress * 2 - (1 - threshold)) {
+            ctx.fillRect(bx, by, blockSize, blockSize);
+          }
+        }
+      }
     }
   }
 
