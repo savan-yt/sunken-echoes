@@ -2,7 +2,7 @@ import {
   GameState, Player, Creature, Projectile, DroppedItem, AirBubble, Particle,
   Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment, ZONE_NAMES,
 } from './types';
-import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES } from './data';
+import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES, ZONE_CREATURES } from './data';
 import { RECIPES, canCraft } from './crafting';
 
 // Upgraded resolution: 52px-based viewport
@@ -165,70 +165,95 @@ export class Game {
 
   spawnCreatures(terrain: number[]): Creature[] {
     const creatures: Creature[] = [];
-    const templates = Object.values(CREATURE_TEMPLATES);
-    for (let i = 0; i < 30; i++) {
-      const tmpl = templates[Math.floor(Math.random() * templates.length)];
-      const x = 200 + Math.random() * (WORLD_W - 400);
-      const tx = terrain[Math.floor(Math.min(x, terrain.length - 1))];
-      const y = tx - 40 - Math.random() * 200;
-      creatures.push({
-        id: `c_${i}`,
-        ...tmpl,
-        pos: { x, y },
-        vel: { x: 0, y: 0 },
-        facing: Math.random() > 0.5 ? 1 : -1,
-        state: 'patrol',
-        attackCooldown: 0,
-        patrolOrigin: { x, y },
-        deathTimer: 0,
-        rangedCooldown: 0,
-        maxHp: tmpl.hp,
-        animFrame: 0,
-        animTimer: 0,
-        corruptionPulse: Math.random() * Math.PI * 2,
-        xpValue: tmpl.xpValue,
-        poisonTimer: 0,
-        poisonDamage: 0,
-      });
+    let id = 0;
+
+    // Zone-based creature spawning
+    for (let zone = 0; zone <= 4; zone++) {
+      const zoneKeys = ZONE_CREATURES[zone] || [];
+      if (zoneKeys.length === 0) continue;
+
+      const zoneMinY = zone * (WORLD_H / 5);
+      const zoneMaxY = (zone + 1) * (WORLD_H / 5);
+      const count = zone <= 2 ? 10 : 6;
+
+      for (let i = 0; i < count; i++) {
+        const key = zoneKeys[Math.floor(Math.random() * zoneKeys.length)];
+        const tmpl = CREATURE_TEMPLATES[key as keyof typeof CREATURE_TEMPLATES];
+        if (!tmpl) continue;
+
+        const x = 100 + Math.random() * (WORLD_W - 200);
+        const minY = Math.max(zoneMinY + 30, 30);
+        const maxY = Math.min(zoneMaxY - 30, WORLD_H - 50);
+        const tx = terrain[Math.floor(Math.min(x, terrain.length - 1))];
+        const y = Math.min(tx - 40, minY + Math.random() * (maxY - minY));
+
+        creatures.push({
+          id: `c_${id++}`,
+          name: tmpl.name,
+          hp: tmpl.hp, maxHp: tmpl.hp,
+          damage: tmpl.damage, speed: tmpl.speed,
+          behavior: tmpl.behavior,
+          attackRange: tmpl.attackRange,
+          patrolRange: tmpl.patrolRange,
+          width: tmpl.width, height: tmpl.height,
+          spriteType: tmpl.spriteType,
+          xpValue: tmpl.xpValue,
+          lootTable: tmpl.lootTable,
+          rangedAttack: (tmpl as any).rangedAttack,
+          pos: { x, y },
+          vel: { x: 0, y: 0 },
+          facing: Math.random() > 0.5 ? 1 : -1,
+          state: 'patrol',
+          attackCooldown: 0,
+          patrolOrigin: { x, y },
+          deathTimer: 0,
+          rangedCooldown: 0,
+          animFrame: 0, animTimer: 0,
+          corruptionPulse: Math.random() * Math.PI * 2,
+          poisonTimer: 0, poisonDamage: 0,
+        });
+      }
     }
 
-    // Spawn Rotjaw boss at x=1800 (end of zone 1)
+    // Spawn bosses at zone boundaries
     const bossX = 1800;
     const bossTx = terrain[Math.floor(bossX)];
-    const bossY = bossTx - 80;
-    const bossTmpl = BOSS_TEMPLATES.rotjaw;
-    const bossId = 'boss_rotjaw';
-    creatures.push({
-      id: bossId,
-      name: bossTmpl.name,
-      hp: bossTmpl.hp,
-      maxHp: bossTmpl.hp,
-      damage: bossTmpl.damage,
-      speed: bossTmpl.speed,
-      behavior: bossTmpl.behavior,
-      attackRange: bossTmpl.attackRange,
-      patrolRange: bossTmpl.patrolRange,
-      width: bossTmpl.width,
-      height: bossTmpl.height,
-      spriteType: bossTmpl.spriteType,
-      xpValue: bossTmpl.xpValue,
-      lootTable: bossTmpl.lootTable,
-      pos: { x: bossX, y: bossY },
-      vel: { x: 0, y: 0 },
-      facing: -1,
-      state: 'patrol',
-      attackCooldown: 0,
-      patrolOrigin: { x: bossX, y: bossY },
-      deathTimer: 0,
-      rangedCooldown: 0,
-      animFrame: 0,
-      animTimer: 0,
-      corruptionPulse: 0,
-      poisonTimer: 0,
-      poisonDamage: 0,
-    });
+    creatures.push(this.createBossCreature('boss_rotjaw', BOSS_TEMPLATES.rotjaw, bossX, bossTx - 80));
+
+    const tangleX = 2600;
+    const tangleTx = terrain[Math.floor(Math.min(tangleX, terrain.length - 1))];
+    creatures.push(this.createBossCreature('boss_tangle', BOSS_TEMPLATES.the_tangle, tangleX, Math.min(tangleTx - 100, WORLD_H * 0.45)));
+
+    const zeroX = 3200;
+    const zeroTx = terrain[Math.floor(Math.min(zeroX, terrain.length - 1))];
+    creatures.push(this.createBossCreature('boss_subject_zero', BOSS_TEMPLATES.subject_zero, zeroX, Math.min(zeroTx - 80, WORLD_H * 0.7)));
 
     return creatures;
+  }
+
+  createBossCreature(bossId: string, tmpl: any, x: number, y: number): Creature {
+    return {
+      id: bossId,
+      name: tmpl.name,
+      hp: tmpl.hp, maxHp: tmpl.hp,
+      damage: tmpl.damage, speed: tmpl.speed,
+      behavior: tmpl.behavior,
+      attackRange: tmpl.attackRange,
+      patrolRange: tmpl.patrolRange,
+      width: tmpl.width, height: tmpl.height,
+      spriteType: tmpl.spriteType,
+      xpValue: tmpl.xpValue,
+      lootTable: tmpl.lootTable,
+      pos: { x, y },
+      vel: { x: 0, y: 0 },
+      facing: -1, state: 'patrol',
+      attackCooldown: 0,
+      patrolOrigin: { x, y },
+      deathTimer: 0, rangedCooldown: 0,
+      animFrame: 0, animTimer: 0,
+      corruptionPulse: 0,
+      poisonTimer: 0, poisonDamage: 0,
+    };
   }
 
   bindInput() {
@@ -728,16 +753,21 @@ export class Game {
       }
     }
 
-    // Boss-specific death
-    if (c.id === 'boss_rotjaw') {
+    // Boss-specific death — handles all bosses
+    const bossTemplateMap: Record<string, any> = {
+      boss_rotjaw: BOSS_TEMPLATES.rotjaw,
+      boss_tangle: BOSS_TEMPLATES.the_tangle,
+      boss_subject_zero: BOSS_TEMPLATES.subject_zero,
+    };
+    const bossTmpl = bossTemplateMap[c.id];
+    if (bossTmpl) {
       this.state.boss.defeated = true;
       this.state.boss.active = false;
-      const tmpl = BOSS_TEMPLATES.rotjaw;
       this.state.memoryFragments.push({
         pos: { x: cx, y: c.pos.y },
         vel: { x: 0, y: -15 },
         lifetime: 60, bobOffset: 0, collected: false, collectTimer: 0,
-        title: tmpl.memoryFragment.title, text: tmpl.memoryFragment.text,
+        title: bossTmpl.memoryFragment.title, text: bossTmpl.memoryFragment.text,
       });
       // Massive multi-ring shockwave
       for (let ring = 0; ring < 3; ring++) {
@@ -750,7 +780,6 @@ export class Game {
           type: 'shockwave',
         });
       }
-      // Boss memory particles
       for (let i = 0; i < 25; i++) {
         this.state.particles.push({
           pos: { x: cx, y: cy },
@@ -793,8 +822,20 @@ export class Game {
     const boss = this.state.boss;
     if (boss.defeated) return;
 
-    const bossCreature = this.state.creatures.find(c => c.id === 'boss_rotjaw');
-    if (!bossCreature || bossCreature.state === 'dead') return;
+    // Find any active boss nearby
+    const bossIds = ['boss_rotjaw', 'boss_tangle', 'boss_subject_zero'];
+    let bossCreature: Creature | undefined;
+    for (const bid of bossIds) {
+      const bc = this.state.creatures.find(c => c.id === bid && c.state !== 'dead');
+      if (!bc) continue;
+      const p = this.state.player;
+      const d = Math.sqrt((p.pos.x - bc.pos.x) ** 2 + (p.pos.y - bc.pos.y) ** 2);
+      if (d < 300 || (boss.active && boss.creatureId === bid)) {
+        bossCreature = bc;
+        break;
+      }
+    }
+    if (!bossCreature) return;
 
     const p = this.state.player;
     const dx = p.pos.x - bossCreature.pos.x;
@@ -811,7 +852,7 @@ export class Game {
       this.bossIntroActive = true;
       this.bossIntroTimer = 3.0;
 
-      // Gate slam particles (barriers closing)
+      // Gate slam particles
       const bx = bossCreature.pos.x + bossCreature.width / 2;
       const by = bossCreature.pos.y + bossCreature.height / 2;
       for (let side = -1; side <= 1; side += 2) {
@@ -824,7 +865,6 @@ export class Game {
           });
         }
       }
-      // Gate slam screen shake
       this.triggerScreenShake(6, 0.5);
 
       // Spotlight particles converging on boss
@@ -835,7 +875,8 @@ export class Game {
           pos: { x: bx + Math.cos(angle) * r, y: by + Math.sin(angle) * r },
           vel: { x: -Math.cos(angle) * 40, y: -Math.sin(angle) * 40 },
           lifetime: 2, maxLifetime: 2, size: 2,
-          color: '#ffaa44', type: 'glow',
+          color: bossCreature.spriteType === 'tangle' ? '#44ff88' : bossCreature.spriteType === 'subject_zero' ? '#ff8844' : '#ffaa44',
+          type: 'glow',
         });
       }
     }
@@ -852,7 +893,6 @@ export class Game {
       const bx = bossCreature.pos.x + bossCreature.width / 2;
       const by = bossCreature.pos.y + bossCreature.height / 2;
 
-      // SHOCKWAVE rings expanding from boss
       for (let ring = 0; ring < 2; ring++) {
         this.state.particles.push({
           pos: { x: bx, y: by },
@@ -864,7 +904,6 @@ export class Game {
         });
       }
 
-      // Phase transition particle burst
       for (let i = 0; i < 25; i++) {
         const angle = (i / 25) * Math.PI * 2;
         const speed = 60 + Math.random() * 60;
@@ -876,11 +915,9 @@ export class Game {
         });
       }
 
-      // Brief white flash
       this.damageFlash = 0.1;
       this.triggerScreenShake(8, 0.4);
 
-      // Phase 2+: gore/new limb burst
       if (newPhase >= 2) {
         for (let i = 0; i < 12; i++) {
           this.state.particles.push({
@@ -896,14 +933,30 @@ export class Game {
 
     if (boss.phaseTransition > 0) {
       boss.phaseTransition -= dt;
-      return; // brief invulnerability during transition
+      return;
     }
 
     boss.chargeCooldown -= dt;
     boss.comboCooldown -= dt;
     boss.roarTimer -= dt;
 
-    // Phase-specific boss speed multiplier
+    // Dispatch to boss-specific AI
+    switch (bossCreature.spriteType) {
+      case 'rotjaw':
+        this.updateBossRotjaw(dt, bossCreature, dist, dx, dy);
+        break;
+      case 'tangle':
+        this.updateBossTangle(dt, bossCreature, dist, dx, dy);
+        break;
+      case 'subject_zero':
+        this.updateBossSubjectZero(dt, bossCreature, dist, dx, dy);
+        break;
+    }
+  }
+
+  updateBossRotjaw(dt: number, bossCreature: Creature, dist: number, dx: number, dy: number) {
+    const boss = this.state.boss;
+    const p = this.state.player;
     const speedMult = boss.phase === 3 ? 1.5 : boss.phase === 2 ? 1.2 : 1;
     bossCreature.speed = 70 * speedMult;
 
@@ -912,8 +965,6 @@ export class Game {
       boss.chargeTimer -= dt;
       bossCreature.vel.x = boss.chargeDir.x * 180 * speedMult;
       bossCreature.vel.y = boss.chargeDir.y * 180 * speedMult;
-
-      // Charge trail particles
       if (Math.random() < 0.5) {
         this.state.particles.push({
           pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
@@ -922,23 +973,12 @@ export class Game {
           color: '#ff4422', type: 'boss_charge',
         });
       }
-
-      // Check hit during charge
       if (dist < 40 && p.invincible <= 0) {
         const chargeDmg = Math.floor(bossCreature.damage * 1.5);
         const defense = this.getStatBonus('defense');
-        const finalChargeDmg = Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
-        p.hp -= finalChargeDmg;
-        p.invincible = 0.8;
-        p.vel.x += boss.chargeDir.x * 150;
-        p.vel.y += boss.chargeDir.y * 80;
-        this.spawnDamageParticles(p.pos.x, p.pos.y, false);
-        this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, finalChargeDmg, '#ff4444');
-        this.triggerScreenShake(6, 0.3);
-        this.damageFlash = 0.2;
-        this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
+        const finalDmg = Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
+        this.dealDamageToPlayer(finalDmg, boss.chargeDir.x * 150, boss.chargeDir.y * 80);
       }
-
       if (boss.chargeTimer <= 0) {
         boss.isCharging = false;
         boss.chargeCooldown = boss.phase === 3 ? 2 : boss.phase === 2 ? 3 : 4;
@@ -946,14 +986,12 @@ export class Game {
       return;
     }
 
-    // Initiate charge attack
     if (boss.chargeCooldown <= 0 && dist < 300 && dist > 60) {
       const nd = dist || 1;
       boss.chargeDir = { x: dx / nd, y: dy / nd };
       boss.isCharging = true;
       boss.chargeTimer = 0.6;
       boss.chargeCooldown = 5;
-      // Charge windup particles
       for (let i = 0; i < 8; i++) {
         this.state.particles.push({
           pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
@@ -977,30 +1015,15 @@ export class Game {
           if (cdist < bossCreature.attackRange * 2 && p.invincible <= 0) {
             const defense = this.getStatBonus('defense');
             const dmg = Math.max(1, Math.floor((bossCreature.damage * 0.8 - defense) * (1 - this.getGearDamageReduction())));
-            p.hp -= dmg;
-            p.invincible = 0.3;
-            this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
-            this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
-            this.triggerScreenShake(4, 0.2);
-            this.damageFlash = 0.15;
-            this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
-            if (p.hp <= 0) {
-              this.state.gameOver = true;
-              this.deathActive = true;
-              this.deathSequence = 0;
-              this.callbacks.onPlayerDeath();
-            }
+            this.dealDamageToPlayer(dmg, 0, 0);
           }
         }, hit * 300);
       }
       boss.comboCooldown = boss.phase === 3 ? 2.5 : 4;
-      boss.comboCount++;
     }
 
-    // Phase 3: fire projectiles periodically
+    // Phase 3: acid projectiles
     if (boss.phase === 3 && bossCreature.rangedCooldown <= 0 && dist < 250) {
-      const nd = dist || 1;
-      // Spread shot — 3 projectiles
       for (let i = -1; i <= 1; i++) {
         const angle = Math.atan2(dy, dx) + i * 0.25;
         this.state.projectiles.push({
@@ -1011,6 +1034,169 @@ export class Game {
         });
       }
       bossCreature.rangedCooldown = 2;
+    }
+  }
+
+  updateBossTangle(dt: number, bossCreature: Creature, dist: number, dx: number, dy: number) {
+    const boss = this.state.boss;
+    const p = this.state.player;
+    bossCreature.speed = 30;
+
+    // Phase 1: Tentacle slams targeting player position + ink clouds
+    if (boss.comboCooldown <= 0 && dist < 200) {
+      // Tentacle slam — spawn damage projectiles at player position
+      for (let i = 0; i < (boss.phase >= 2 ? 3 : 2); i++) {
+        const offset = (i - 1) * 30;
+        setTimeout(() => {
+          if (bossCreature.state === 'dead') return;
+          this.state.projectiles.push({
+            pos: { x: p.pos.x + offset, y: bossCreature.pos.y },
+            vel: { x: 0, y: 100 },
+            width: 12, height: 40, damage: bossCreature.damage,
+            lifetime: 0.8, fromPlayer: false, type: 'acid',
+          });
+          this.triggerScreenShake(3, 0.15);
+        }, i * 400);
+      }
+      boss.comboCooldown = boss.phase === 3 ? 2 : boss.phase === 2 ? 3 : 4;
+    }
+
+    // Ink cloud area denial
+    if (boss.chargeCooldown <= 0 && dist < 250) {
+      // Spawn ink cloud particles (damage zone)
+      const cx = bossCreature.pos.x + bossCreature.width / 2 + (Math.random() - 0.5) * 100;
+      const cy = bossCreature.pos.y + bossCreature.height / 2;
+      for (let i = 0; i < 10; i++) {
+        this.state.particles.push({
+          pos: { x: cx + (Math.random() - 0.5) * 30, y: cy + (Math.random() - 0.5) * 30 },
+          vel: { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 10 },
+          lifetime: 3, maxLifetime: 3, size: 5 + Math.random() * 5,
+          color: '#110822', type: 'corruption',
+        });
+      }
+      boss.chargeCooldown = boss.phase === 3 ? 3 : 5;
+    }
+
+    // Phase 2: Two sweeping tentacle projectiles
+    if (boss.phase >= 2 && bossCreature.rangedCooldown <= 0) {
+      for (let side = -1; side <= 1; side += 2) {
+        this.state.projectiles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2 + side * 20, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: side * 60, y: 0 },
+          width: 30, height: 6, damage: Math.floor(bossCreature.damage * 0.6),
+          lifetime: 3, fromPlayer: false, type: 'acid',
+        });
+      }
+      bossCreature.rangedCooldown = boss.phase === 3 ? 2 : 4;
+    }
+
+    // Phase 3: Ink fills arena — reduced visibility handled in render
+  }
+
+  updateBossSubjectZero(dt: number, bossCreature: Creature, dist: number, dx: number, dy: number) {
+    const boss = this.state.boss;
+    const p = this.state.player;
+    const speedMult = boss.phase === 3 ? 1.6 : boss.phase === 2 ? 1.3 : 1;
+    bossCreature.speed = 65 * speedMult;
+
+    // Erratic movement — jitter
+    if (Math.random() < 0.1) {
+      bossCreature.vel.x += (Math.random() - 0.5) * 80;
+      bossCreature.vel.y += (Math.random() - 0.5) * 60;
+    }
+
+    // Phase 1: Erratic charges + acid spit volleys
+    if (boss.chargeCooldown <= 0 && dist < 250 && dist > 40) {
+      const nd = dist || 1;
+      boss.chargeDir = { x: dx / nd, y: dy / nd };
+      boss.isCharging = true;
+      boss.chargeTimer = 0.4;
+      boss.chargeCooldown = boss.phase === 3 ? 1.5 : 3;
+
+      bossCreature.vel.x = boss.chargeDir.x * 200 * speedMult;
+      bossCreature.vel.y = boss.chargeDir.y * 200 * speedMult;
+
+      // Charge trail
+      for (let i = 0; i < 6; i++) {
+        this.state.particles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: (Math.random() - 0.5) * 50, y: (Math.random() - 0.5) * 50 },
+          lifetime: 0.5, maxLifetime: 0.5, size: 2,
+          color: '#ff6644', type: 'boss_charge',
+        });
+      }
+    }
+
+    if (boss.isCharging) {
+      boss.chargeTimer -= dt;
+      if (dist < 35 && p.invincible <= 0) {
+        const defense = this.getStatBonus('defense');
+        const dmg = Math.max(1, Math.floor((bossCreature.damage - defense) * (1 - this.getGearDamageReduction())));
+        this.dealDamageToPlayer(dmg, boss.chargeDir.x * 120, boss.chargeDir.y * 80);
+      }
+      if (boss.chargeTimer <= 0) boss.isCharging = false;
+    }
+
+    // Acid spit volleys
+    if (bossCreature.rangedCooldown <= 0 && dist < 200) {
+      const volleys = boss.phase >= 2 ? 5 : 3;
+      for (let i = 0; i < volleys; i++) {
+        const spread = (i - Math.floor(volleys / 2)) * 0.2;
+        const angle = Math.atan2(dy, dx) + spread;
+        this.state.projectiles.push({
+          pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+          vel: { x: Math.cos(angle) * 100, y: Math.sin(angle) * 100 },
+          width: 6, height: 6, damage: Math.floor(bossCreature.damage * 0.4),
+          lifetime: 2, fromPlayer: false, type: 'acid',
+        });
+      }
+      bossCreature.rangedCooldown = boss.phase === 3 ? 1.5 : 3;
+    }
+
+    // Phase 2: Core beam — sweep projectile
+    if (boss.phase >= 2 && boss.comboCooldown <= 0 && dist < 200) {
+      // Fire a continuous line of projectiles
+      const beamAngle = Math.atan2(dy, dx);
+      for (let i = 0; i < 8; i++) {
+        setTimeout(() => {
+          if (bossCreature.state === 'dead') return;
+          const sweepAngle = beamAngle + (i - 4) * 0.15;
+          this.state.projectiles.push({
+            pos: { x: bossCreature.pos.x + bossCreature.width / 2, y: bossCreature.pos.y + bossCreature.height / 2 },
+            vel: { x: Math.cos(sweepAngle) * 150, y: Math.sin(sweepAngle) * 150 },
+            width: 4, height: 4, damage: Math.floor(bossCreature.damage * 0.3),
+            lifetime: 1.5, fromPlayer: false, type: 'shock',
+          });
+        }, i * 100);
+      }
+      boss.comboCooldown = boss.phase === 3 ? 4 : 6;
+    }
+
+    // Mimic player movement briefly
+    if (boss.phase >= 1 && Math.random() < 0.02) {
+      bossCreature.vel.x = p.vel.x * 0.8;
+      bossCreature.vel.y = p.vel.y * 0.8;
+    }
+  }
+
+  dealDamageToPlayer(dmg: number, knockX: number, knockY: number) {
+    const p = this.state.player;
+    p.hp -= dmg;
+    p.invincible = 0.5;
+    if (knockX || knockY) {
+      p.vel.x += knockX;
+      p.vel.y += knockY;
+    }
+    this.spawnDamageParticles(p.pos.x + p.width / 2, p.pos.y + p.height / 2, false);
+    this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, dmg, '#ff4444');
+    this.triggerScreenShake(4, 0.2);
+    this.damageFlash = 0.15;
+    this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
+    if (p.hp <= 0) {
+      this.state.gameOver = true;
+      this.deathActive = true;
+      this.deathSequence = 0;
+      this.callbacks.onPlayerDeath();
     }
   }
 
@@ -1095,7 +1281,7 @@ export class Game {
         }
 
         if (c.deathTimer <= 0) {
-          if (c.id === 'boss_rotjaw') continue;
+          if (c.id.startsWith('boss_')) continue;
           const x = p.pos.x + (Math.random() > 0.5 ? 1 : -1) * (500 + Math.random() * 400);
           const clampedX = Math.max(50, Math.min(WORLD_W - 50, x));
           const tx = Math.floor(clampedX);
@@ -2159,6 +2345,418 @@ export class Game {
         }
         break;
       }
+
+      case 'clownfish': {
+        // Small fast clownfish — orange/white striped
+        ctx.fillStyle = '#ee7733';
+        ctx.fillRect(-w, -h + bob, w * 2 - 2, h * 2);
+        // White stripes
+        ctx.fillStyle = '#ffddbb';
+        ctx.fillRect(-w + 3, -h + bob, 3, h * 2);
+        ctx.fillRect(w - 6, -h + bob, 3, h * 2);
+        // Dorsal fin
+        ctx.fillStyle = '#cc5522';
+        ctx.fillRect(-2, -h - 2 + bob, 4, 3);
+        // Tail
+        const tailSwing = Math.sin(this.state.time * 8 + c.pos.x) * 2;
+        ctx.fillStyle = '#cc5522';
+        ctx.fillRect(-w - 3, -h + 1 + bob + tailSwing, 4, h * 2 - 2);
+        // Corruption eye
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow})`;
+        ctx.fillRect(w - 4, -h + 2 + bob, 2, 2);
+        break;
+      }
+
+      case 'anglerfish': {
+        // Large mouth anglerfish with bioluminescent lure
+        ctx.fillStyle = '#2a3540';
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Huge jaw
+        ctx.fillStyle = '#1a2530';
+        ctx.fillRect(w - 8, -h + h * 0.4 + bob, 10, h);
+        // Teeth
+        ctx.fillStyle = '#ccbbaa';
+        for (let i = 0; i < 5; i++) {
+          ctx.fillRect(w - 6 + i * 2, -h + h * 0.35 + bob, 1, 3);
+          ctx.fillRect(w - 6 + i * 2, h * 0.4 + bob, 1, -3);
+        }
+        // Bioluminescent lure
+        const lureGlow = 0.5 + Math.sin(this.state.time * 3) * 0.3;
+        ctx.fillStyle = `rgba(100, 255, 200, ${lureGlow})`;
+        const lureX = -3;
+        const lureY = -h - 6 + bob + Math.sin(this.state.time * 2) * 2;
+        ctx.fillRect(lureX, lureY, 4, 4);
+        // Lure stalk
+        ctx.fillStyle = '#445566';
+        ctx.fillRect(lureX + 1, lureY + 4, 1, 6);
+        // Lure glow halo
+        ctx.fillStyle = `rgba(100, 255, 200, ${lureGlow * 0.15})`;
+        ctx.fillRect(lureX - 4, lureY - 4, 12, 12);
+        // Tiny angry eyes
+        ctx.fillStyle = `rgba(255, 200, 50, ${corruptGlow})`;
+        ctx.fillRect(w - 10, -h + 4 + bob, 2, 2);
+        break;
+      }
+
+      case 'sea_snake': {
+        // Long, sinuous serpent
+        const segs = 8;
+        for (let i = 0; i < segs; i++) {
+          const segBob = Math.sin(this.state.time * 5 + i * 0.9) * 4;
+          const t = i / segs;
+          const segW = 4 + (1 - Math.abs(t - 0.4)) * 3;
+          const g = Math.floor(40 + t * 30);
+          ctx.fillStyle = `rgb(${g}, ${100 + g}, ${50 + g})`;
+          ctx.fillRect(-w + i * (w * 2 / segs), -h / 2 + segBob, segW, h);
+          // Iridescent scale pattern
+          if (i % 2 === 0) {
+            ctx.fillStyle = `rgba(150, 255, 180, ${corruptGlow * 0.3})`;
+            ctx.fillRect(-w + i * (w * 2 / segs) + 1, -h / 2 + segBob + 1, 2, h - 2);
+          }
+        }
+        // Head with fangs
+        ctx.fillStyle = '#5a8a5a';
+        ctx.fillRect(w - 5, -h / 2, 5, h);
+        ctx.fillStyle = `rgba(200, 255, 100, ${corruptGlow})`;
+        ctx.fillRect(w - 3, -h / 2 + 1, 2, 2);
+        // Fangs
+        ctx.fillStyle = '#eeddcc';
+        ctx.fillRect(w - 2, h / 2 - 1, 1, 3);
+        ctx.fillRect(w - 4, h / 2 - 1, 1, 3);
+        break;
+      }
+
+      case 'mantis_shrimp': {
+        // Compact, armored, powerful claws
+        ctx.fillStyle = '#44aa77';
+        ctx.fillRect(-w + 2, -h + bob, w * 2 - 4, h * 2);
+        // Color bands
+        ctx.fillStyle = '#ee5533';
+        ctx.fillRect(-w + 4, -h + 3 + bob, w * 2 - 8, 3);
+        ctx.fillStyle = '#3388cc';
+        ctx.fillRect(-w + 4, h - 4 + bob, w * 2 - 8, 3);
+        // Massive hammer claws
+        const clawSwing = Math.sin(this.state.time * 6 + c.pos.x) > 0.7 ? 3 : 0;
+        ctx.fillStyle = '#cc3322';
+        ctx.fillRect(w - 2, -h + bob - clawSwing, 6, 6);
+        ctx.fillRect(w - 2, h - 6 + bob + clawSwing, 6, 6);
+        // Eyes on stalks
+        ctx.fillStyle = '#2288aa';
+        ctx.fillRect(-w + 2, -h - 4 + bob, 3, 5);
+        ctx.fillRect(w - 5, -h - 4 + bob, 3, 5);
+        ctx.fillStyle = `rgba(50, 200, 255, ${corruptGlow})`;
+        ctx.fillRect(-w + 2, -h - 5 + bob, 3, 3);
+        ctx.fillRect(w - 5, -h - 5 + bob, 3, 3);
+        break;
+      }
+
+      case 'squid': {
+        // Streamlined squid body
+        const sqBob = Math.sin(this.state.time * 2.5) * 2;
+        ctx.fillStyle = `rgba(180, 80, 120, ${0.6 + corruptGlow * 0.2})`;
+        ctx.beginPath();
+        ctx.ellipse(0, -h * 0.2 + sqBob, w - 2, h * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Mantle point
+        ctx.fillStyle = '#aa5577';
+        ctx.fillRect(-3, -h + sqBob, 6, 5);
+        // Tentacles
+        ctx.fillStyle = `rgba(160, 60, 100, ${0.5 + corruptGlow * 0.15})`;
+        for (let i = 0; i < 6; i++) {
+          const tBob = Math.sin(this.state.time * 3 + i * 1.1) * 3;
+          const tx2 = -w + 3 + i * ((w * 2 - 6) / 5);
+          ctx.fillRect(tx2, h * 0.1 + sqBob, 2, 8 + tBob);
+        }
+        // Large eyes
+        ctx.fillStyle = `rgba(255, 180, 50, ${corruptGlow})`;
+        ctx.fillRect(-w + 3, -h * 0.3 + sqBob, 4, 4);
+        ctx.fillRect(w - 7, -h * 0.3 + sqBob, 4, 4);
+        break;
+      }
+
+      case 'kelp_lurker': {
+        // Looks like kelp until it attacks — tall, thin, plant-like
+        const sway = Math.sin(this.state.time * 1.2 + c.pos.x) * 3;
+        const reveal = c.state === 'chase' || c.state === 'attack' ? 1 : 0.3;
+        // Kelp-like body
+        for (let i = 0; i < 6; i++) {
+          const t = i / 6;
+          const segSway = sway * t;
+          ctx.fillStyle = `rgba(30, ${70 + t * 30}, 40, ${0.6 + reveal * 0.3})`;
+          ctx.fillRect(-w / 2 + segSway, -h + i * (h * 2 / 6), w, h * 2 / 6 + 1);
+        }
+        // When aggressive: reveal red eyes and tendrils
+        if (reveal > 0.5) {
+          ctx.fillStyle = `rgba(255, 50, 50, ${corruptGlow})`;
+          ctx.fillRect(-3, -h * 0.3, 3, 3);
+          ctx.fillRect(2, -h * 0.3, 3, 3);
+          // Thorned tendrils
+          ctx.fillStyle = `rgba(200, 50, 30, ${corruptGlow * 0.5})`;
+          ctx.fillRect(-w / 2 - 4, -h * 0.1, 3, 6);
+          ctx.fillRect(w / 2 + 1, -h * 0.1, 3, 6);
+        }
+        break;
+      }
+
+      case 'lab_rat': {
+        // Tiny, fast, corrupted lab rat
+        ctx.fillStyle = '#887766';
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Darker back
+        ctx.fillStyle = '#776655';
+        ctx.fillRect(-w, -h + bob, w * 2, h);
+        // Tail
+        const ratTail = Math.sin(this.state.time * 8 + c.pos.x) * 2;
+        ctx.fillStyle = '#aa8877';
+        ctx.fillRect(-w - 4, -1 + bob + ratTail, 5, 1);
+        // Eyes — red corruption
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow})`;
+        ctx.fillRect(w - 3, -h + 1 + bob, 2, 2);
+        // Whiskers
+        ctx.fillStyle = '#998877';
+        ctx.fillRect(w - 1, -h + 2 + bob, 3, 1);
+        ctx.fillRect(w - 1, -h + 4 + bob, 3, 1);
+        break;
+      }
+
+      case 'specimen': {
+        // Warped lab specimen — asymmetric, unsettling
+        ctx.fillStyle = '#6a4a5a';
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Mutation lumps
+        ctx.fillStyle = '#8a5a6a';
+        ctx.fillRect(-w + 2, -h + 2 + bob, w, h);
+        ctx.fillRect(w - w + 5, h * 0.2 + bob, w - 3, h - 2);
+        // Exposed muscle/corruption
+        ctx.fillStyle = `rgba(255, 80, 60, ${corruptGlow * 0.6})`;
+        ctx.fillRect(-w + 4, -h + 6 + bob, 6, 4);
+        ctx.fillRect(w - 8, h * 0.1 + bob, 4, 6);
+        // Multiple mismatched eyes
+        ctx.fillStyle = `rgba(255, 200, 50, ${corruptGlow})`;
+        ctx.fillRect(w - 5, -h + 3 + bob, 3, 3);
+        ctx.fillStyle = `rgba(255, 50, 50, ${corruptGlow})`;
+        ctx.fillRect(w - 8, -h + 7 + bob, 2, 2);
+        ctx.fillRect(w - 3, -h + 8 + bob, 2, 2);
+        // Vestigial limbs
+        ctx.fillStyle = '#5a3a4a';
+        ctx.fillRect(-w - 3, h * 0.1 + bob, 4, 3);
+        ctx.fillRect(w, -h + h * 0.5 + bob, 4, 3);
+        break;
+      }
+
+      case 'drone': {
+        // Security drone — mechanical, angular
+        ctx.fillStyle = '#556677';
+        ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        // Metal plating
+        ctx.fillStyle = '#667788';
+        ctx.fillRect(-w + 1, -h + 1 + bob, w * 2 - 2, 3);
+        ctx.fillRect(-w + 1, h - 3 + bob, w * 2 - 2, 3);
+        // Sensor eye — red scanning
+        const scanX = Math.sin(this.state.time * 4) * (w - 4);
+        ctx.fillStyle = `rgba(255, 30, 30, ${0.6 + Math.sin(this.state.time * 6) * 0.3})`;
+        ctx.fillRect(scanX - 2, -2 + bob, 4, 4);
+        // Scanner beam
+        ctx.fillStyle = `rgba(255, 30, 30, 0.1)`;
+        ctx.fillRect(scanX - 1, h / 2 + bob, 2, 20);
+        // Thrusters
+        ctx.fillStyle = '#444455';
+        ctx.fillRect(-w - 2, -h + 3 + bob, 3, h - 2);
+        ctx.fillRect(w - 1, -h + 3 + bob, 3, h - 2);
+        // Thruster glow
+        if (Math.abs(c.vel.x) > 5 || Math.abs(c.vel.y) > 5) {
+          ctx.fillStyle = `rgba(100, 150, 255, ${0.3 + Math.random() * 0.2})`;
+          ctx.fillRect(-w - 3, -2 + bob, 2, 4);
+          ctx.fillRect(w + 1, -2 + bob, 2, 4);
+        }
+        break;
+      }
+
+      case 'corrupted_diver': {
+        // Twisted mirror of the player — deeply unsettling
+        const dBob = Math.sin(this.state.time * 1.5 + c.pos.x) * 2;
+        // Body — tattered dive suit
+        ctx.fillStyle = '#2a3040';
+        ctx.fillRect(-5, -5 + dBob, 10, 14);
+        // Corruption has warped the suit
+        ctx.fillStyle = `rgba(120, 40, 40, ${corruptGlow * 0.4})`;
+        ctx.fillRect(-4, -3 + dBob, 8, 4);
+        // Helmet — cracked visor
+        ctx.fillStyle = '#556677';
+        ctx.fillRect(-4, -h + dBob, 8, 7);
+        // Cracked visor — dark inside
+        ctx.fillStyle = '#223344';
+        ctx.fillRect(-2, -h + 2 + dBob, 5, 4);
+        // Single glowing eye through cracked visor
+        ctx.fillStyle = `rgba(255, 100, 40, ${corruptGlow})`;
+        ctx.fillRect(0, -h + 3 + dBob, 2, 2);
+        // Arms — reaching out
+        ctx.fillStyle = '#334455';
+        const armReach = c.state === 'chase' ? 4 : 0;
+        ctx.fillRect(4, -3 + dBob, 4 + armReach, 3);
+        // Legs — limp
+        ctx.fillStyle = '#2a3040';
+        ctx.fillRect(-3, 9 + dBob, 3, 5);
+        ctx.fillRect(1, 9 + dBob, 3, 6);
+        // Corruption tendrils from suit
+        ctx.fillStyle = `rgba(180, 30, 30, ${corruptGlow * 0.5})`;
+        ctx.fillRect(-6, -2 + dBob, 2, 8);
+        ctx.fillRect(5, 0 + dBob, 2, 6);
+        break;
+      }
+
+      case 'overflow': {
+        // Liquid corruption entity — amorphous, seeping
+        const overflowT = this.state.time * 2 + c.pos.x;
+        ctx.fillStyle = `rgba(80, 20, 40, ${0.6 + corruptGlow * 0.2})`;
+        // Amorphous blob shape
+        for (let i = 0; i < 5; i++) {
+          const blobX = -w + i * (w * 2 / 4);
+          const blobH = h + Math.sin(overflowT + i * 1.5) * 3;
+          ctx.fillRect(blobX, -blobH / 2, w * 2 / 4 + 1, blobH);
+        }
+        // Glowing corruption veins
+        ctx.fillStyle = `rgba(255, 40, 60, ${corruptGlow * 0.7})`;
+        ctx.fillRect(-w + 3, -2, 1, 4);
+        ctx.fillRect(0, -3, 1, 6);
+        ctx.fillRect(w - 4, -1, 1, 3);
+        // Dripping tendrils below
+        for (let i = 0; i < 3; i++) {
+          const dripLen = 3 + Math.sin(overflowT + i * 2) * 2;
+          ctx.fillStyle = `rgba(100, 20, 30, ${0.5 + Math.sin(overflowT + i) * 0.2})`;
+          ctx.fillRect(-w + 4 + i * 8, h / 2, 2, dripLen);
+        }
+        // No distinct eyes — just a pulsing core
+        ctx.fillStyle = `rgba(255, 80, 80, ${corruptGlow * 0.4})`;
+        ctx.fillRect(-2, -2, 4, 4);
+        break;
+      }
+
+      case 'tangle': {
+        // THE TANGLE — colossal corrupted octopus boss
+        const boss = this.state.boss;
+        const phase = boss.creatureId === c.id ? boss.phase : 1;
+        const phaseGlow = phase === 3 ? 0.8 : phase === 2 ? 0.5 : 0.3;
+
+        // Central body mass — armored with absorbed shells
+        ctx.fillStyle = '#443350';
+        ctx.beginPath();
+        ctx.ellipse(0, -h * 0.15 + bob, w * 0.7, h * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Absorbed shell armor
+        ctx.fillStyle = '#556060';
+        ctx.fillRect(-w * 0.3, -h * 0.35 + bob, 6, 4);
+        ctx.fillRect(w * 0.1, -h * 0.25 + bob, 5, 3);
+        ctx.fillRect(-w * 0.1, h * 0.05 + bob, 4, 4);
+        // Twelve clustered eyes
+        const eyeGlow = `rgba(180, 255, 100, ${corruptGlow * phaseGlow})`;
+        ctx.fillStyle = eyeGlow;
+        for (let i = 0; i < 12; i++) {
+          const row = Math.floor(i / 4);
+          const col = i % 4;
+          ctx.fillRect(-6 + col * 4, -h * 0.3 + row * 4 + bob, 2, 2);
+        }
+        // Tentacles — 8 reaching outward
+        for (let t2 = 0; t2 < 8; t2++) {
+          const tentAngle = (t2 / 8) * Math.PI * 2;
+          const tentSway = Math.sin(this.state.time * 1.5 + t2 * 0.8) * 5;
+          const tentLen = 20 + Math.sin(this.state.time + t2) * 5;
+          const tx2 = Math.cos(tentAngle) * tentLen + tentSway;
+          const ty = Math.sin(tentAngle) * tentLen * 0.6;
+          ctx.fillStyle = `rgba(60, 40, 70, ${0.6 + corruptGlow * 0.2})`;
+          // Draw tentacle as segments
+          for (let seg = 0; seg < 4; seg++) {
+            const segT = seg / 4;
+            const segX = tx2 * segT;
+            const segY = ty * segT + h * 0.1;
+            ctx.fillRect(segX - 2, segY + bob, 4, 4);
+            // Hooked barbs
+            if (seg === 3) {
+              ctx.fillStyle = '#ccbbaa';
+              ctx.fillRect(segX, segY + bob, 2, 3);
+            }
+            ctx.fillStyle = `rgba(60, 40, 70, ${0.6 + corruptGlow * 0.2})`;
+          }
+        }
+        // Phase visuals
+        if (phase >= 2) {
+          ctx.fillStyle = `rgba(100, 40, 80, ${0.15 + Math.sin(this.state.time * 2) * 0.05})`;
+          ctx.fillRect(-w, -h + bob, w * 2, h * 2);
+        }
+        if (phase === 3) {
+          // Ink cloud aura
+          ctx.fillStyle = `rgba(20, 10, 30, ${0.2 + Math.sin(this.state.time * 4) * 0.1})`;
+          ctx.fillRect(-w - 10, -h - 10 + bob, w * 2 + 20, h * 2 + 20);
+        }
+        break;
+      }
+
+      case 'subject_zero': {
+        // SUBJECT ZERO — barely humanoid, pulsing corruption core
+        const boss = this.state.boss;
+        const phase = boss.creatureId === c.id ? boss.phase : 1;
+        const phaseGlow = phase === 3 ? 0.9 : phase === 2 ? 0.6 : 0.4;
+
+        // Twisted body — bent limbs
+        ctx.fillStyle = '#443344';
+        ctx.fillRect(-6, -8 + bob, 12, 18);
+        // Exposed ribcage
+        ctx.fillStyle = '#332233';
+        ctx.fillRect(-5, -4 + bob, 10, 8);
+        // Ribs
+        ctx.fillStyle = '#665566';
+        for (let i = 0; i < 4; i++) {
+          ctx.fillRect(-4, -3 + i * 3 + bob, 8, 1);
+        }
+        // PULSING CORE — visible through ribcage
+        const corePulse = 0.5 + Math.sin(this.state.time * 4) * 0.3;
+        ctx.fillStyle = `rgba(255, 120, 80, ${corePulse * phaseGlow})`;
+        ctx.fillRect(-2, -1 + bob, 4, 4);
+        // Core glow halo
+        ctx.fillStyle = `rgba(255, 120, 80, ${corePulse * phaseGlow * 0.2})`;
+        ctx.fillRect(-6, -5 + bob, 12, 12);
+        // Head — distorted, tilted
+        ctx.fillStyle = '#554455';
+        ctx.fillRect(-4, -h + bob, 8, 8);
+        // Tattered lab coat remnants
+        ctx.fillStyle = '#aaaaaa44';
+        ctx.fillRect(-7, -6 + bob, 3, 14);
+        ctx.fillRect(5, -4 + bob, 3, 12);
+        // Arms — bent wrong
+        ctx.fillStyle = '#443344';
+        ctx.fillRect(-w + 2, -3 + bob, 5, 3);
+        ctx.fillRect(-w, 0 + bob, 3, 6); // bent down
+        ctx.fillRect(w - 6, -5 + bob, 5, 3);
+        ctx.fillRect(w - 2, -2 + bob, 3, 8); // reaching
+        // Legs — twisted
+        ctx.fillStyle = '#332233';
+        ctx.fillRect(-4, 10 + bob, 3, 7);
+        ctx.fillRect(2, 10 + bob, 3, 8);
+        // Eyes — one human, one corrupted
+        ctx.fillStyle = '#88bbff';
+        ctx.fillRect(-2, -h + 2 + bob, 2, 2); // human eye
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow * phaseGlow})`;
+        ctx.fillRect(2, -h + 3 + bob, 3, 3); // corrupted eye
+        // Eye glow
+        ctx.fillStyle = `rgba(255, 40, 40, ${corruptGlow * phaseGlow * 0.2})`;
+        ctx.fillRect(0, -h + 1 + bob, 8, 8);
+        // Corruption spreading
+        ctx.fillStyle = `rgba(200, 40, 40, ${corruptGlow * 0.4})`;
+        ctx.fillRect(-6, -h + 6 + bob, 2, 10);
+        ctx.fillRect(5, -h + 4 + bob, 2, 12);
+        // Phase effects
+        if (phase >= 2) {
+          // Ribcage opens wider, core beam hint
+          ctx.fillStyle = `rgba(255, 150, 80, ${corePulse * 0.3})`;
+          ctx.fillRect(-8, -2 + bob, 16, 6);
+        }
+        if (phase === 3) {
+          // Splitting apart visual
+          ctx.fillStyle = `rgba(255, 60, 40, ${0.15 + Math.sin(this.state.time * 6) * 0.1})`;
+          ctx.fillRect(-w - 5, -h - 5 + bob, w * 2 + 10, h * 2 + 10);
+        }
+        break;
+      }
     }
   }
 
@@ -2212,8 +2810,8 @@ export class Game {
   renderBossHPBar(ctx: CanvasRenderingContext2D) {
     const boss = this.state.boss;
     if (!boss.active || boss.defeated) return;
-    const bossCreature = this.state.creatures.find(c => c.id === 'boss_rotjaw');
-    if (!bossCreature || bossCreature.state === 'dead') return;
+    const bossCreature = this.state.creatures.find(c => c.id === this.state.boss.creatureId && c.state !== 'dead');
+    if (!bossCreature) return;
 
     const barW = 300;
     const barH = 8;
@@ -3075,7 +3673,7 @@ export class Game {
 
   renderBossIntro(ctx: CanvasRenderingContext2D, cam: Vec2) {
     const t = 3.0 - this.bossIntroTimer; // time since intro started
-    const boss = this.state.creatures.find(c => c.id === 'boss_rotjaw');
+    const boss = this.state.creatures.find(c => c.id === this.state.boss.creatureId);
     if (!boss) return;
 
     // Screen dim — spotlight effect
@@ -3122,18 +3720,21 @@ export class Game {
       ctx.globalAlpha = nameAlpha;
 
       // Boss name
-      ctx.fillStyle = '#ff4422';
+      const bossColors: Record<string, string> = { rotjaw: '#ff4422', tangle: '#44ff88', subject_zero: '#ff8844' };
+      const bossSubtitles: Record<string, string> = { rotjaw: 'Guardian of the Shallows', tangle: 'Terror of the Kelp', subject_zero: 'The First Experiment' };
+      const sprType = boss?.spriteType || 'rotjaw';
+      ctx.fillStyle = bossColors[sprType] || '#ff4422';
       ctx.font = '10px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.shadowColor = '#ff0000';
+      ctx.shadowColor = bossColors[sprType] || '#ff0000';
       ctx.shadowBlur = 8;
-      ctx.fillText('⚠ ROTJAW, THE CORRUPTED ⚠', GAME_W / 2, GAME_H / 2 - 30);
+      ctx.fillText(`⚠ ${(boss?.name || 'BOSS').toUpperCase()} ⚠`, GAME_W / 2, GAME_H / 2 - 30);
 
       // Subtitle
       ctx.fillStyle = '#aa6644';
       ctx.font = '6px "Press Start 2P", monospace';
       ctx.shadowBlur = 4;
-      ctx.fillText('Guardian of the Deep', GAME_W / 2, GAME_H / 2 - 15);
+      ctx.fillText(bossSubtitles[sprType] || 'Boss', GAME_W / 2, GAME_H / 2 - 15);
 
       // HP bar slides in
       if (t > 1.3) {
