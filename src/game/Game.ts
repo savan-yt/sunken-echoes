@@ -1534,7 +1534,7 @@ export class Game {
       c.rangedCooldown -= dt;
 
       const stealthReduction = 1 - this.state.skills.levels.stealth * 0.1;
-      const detectRange = (c.behavior === 'ambush' ? 80 : 160) * stealthReduction;
+      const detectRange = (c.behavior === 'ambush' ? 80 : 160) * stealthReduction * this.getDetectionMultiplier();
       
       if (dist < detectRange && c.behavior !== 'patrol') {
         c.state = 'chase';
