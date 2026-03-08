@@ -880,6 +880,8 @@ export class Game {
           this.helmetCracks = Math.min(5, Math.floor((1 - p.hp / p.maxHp) * 5));
           if (p.hp <= 0) {
             this.state.gameOver = true;
+            this.deathActive = true;
+            this.deathSequence = 0;
             this.callbacks.onPlayerDeath();
           }
         }
