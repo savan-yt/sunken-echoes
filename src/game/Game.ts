@@ -725,6 +725,69 @@ export class Game {
         this.triggerScreenShake(4, 0.4);
         break;
       }
+      case 'tangle': {
+        // Tangle: tentacles fly apart, ink explosion
+        c.deathTimer = 5;
+        // Tentacle fragments flying in all directions
+        for (let i = 0; i < 24; i++) {
+          const angle = (i / 24) * Math.PI * 2;
+          const speed = 20 + Math.random() * 60;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 3, maxLifetime: 3, size: 4 + Math.random() * 5,
+            color: i % 3 === 0 ? '#443350' : i % 3 === 1 ? '#66ff88' : '#221133',
+            type: 'death_chunk', rotation: Math.random() * Math.PI * 2, rotationSpeed: (Math.random() - 0.5) * 6,
+          });
+        }
+        // Massive ink cloud
+        for (let i = 0; i < 20; i++) {
+          this.state.particles.push({
+            pos: { x: cx + (Math.random() - 0.5) * c.width, y: cy + (Math.random() - 0.5) * c.height },
+            vel: { x: (Math.random() - 0.5) * 30, y: (Math.random() - 0.5) * 30 },
+            lifetime: 4, maxLifetime: 4, size: 6 + Math.random() * 4,
+            color: '#110822', type: 'corruption',
+          });
+        }
+        // Green bio-luminescent sparks from severed tentacles
+        for (let i = 0; i < 15; i++) {
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+            lifetime: 1.5, maxLifetime: 1.5, size: 2 + Math.random(),
+            color: '#88ff66', type: 'spark',
+          });
+        }
+        this.triggerScreenShake(6, 0.5);
+        break;
+      }
+      case 'subject_zero': {
+        // Subject Zero: glitch death — rapid flashing, erratic particles
+        c.deathTimer = 5;
+        for (let i = 0; i < 20; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 40 + Math.random() * 60;
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+            lifetime: 2 + Math.random(), maxLifetime: 3, size: 3 + Math.random() * 3,
+            color: Math.random() > 0.5 ? '#ff6644' : '#443344',
+            type: 'death_chunk', rotation: Math.random() * 6, rotationSpeed: (Math.random() - 0.5) * 10,
+          });
+        }
+        // Core explosion sparks
+        for (let i = 0; i < 12; i++) {
+          this.state.particles.push({
+            pos: { x: cx, y: cy },
+            vel: { x: (Math.random() - 0.5) * 100, y: (Math.random() - 0.5) * 100 },
+            lifetime: 1, maxLifetime: 1, size: 2,
+            color: '#ff8844', type: 'spark',
+          });
+        }
+        this.triggerScreenShake(8, 0.5);
+        this.damageFlash = 0.15;
+        break;
+      }
       case 'jelly': {
         // Jellyfish: burst into electric sparks
         c.deathTimer = 1.5;
@@ -2899,7 +2962,16 @@ export class Game {
     ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
 
     // HP fill with phase color
-    const phaseColors = ['#cc4444', '#ff6622', '#ff2222'];
+    const bossPhaseColors: Record<string, string[]> = {
+      rotjaw: ['#cc4444', '#ff6622', '#ff2222'],
+      tangle: ['#44aa66', '#22cc88', '#22ffaa'],
+      subject_zero: ['#cc6644', '#ff8822', '#ff4422'],
+    };
+    const bossNameColors: Record<string, string> = {
+      rotjaw: '#ff8866', tangle: '#66ffaa', subject_zero: '#ff9966',
+    };
+    const sprType = bossCreature.spriteType;
+    const phaseColors = bossPhaseColors[sprType] || ['#cc4444', '#ff6622', '#ff2222'];
     ctx.fillStyle = phaseColors[boss.phase - 1];
     ctx.fillRect(bx, by, barW * hpPct, barH);
 
@@ -2908,11 +2980,11 @@ export class Game {
     ctx.fillRect(bx + barW * 0.6, by, 1, barH);
     ctx.fillRect(bx + barW * 0.3, by, 1, barH);
 
-    // Boss name
-    ctx.fillStyle = '#ff8866';
+    // Boss name — dynamic
+    ctx.fillStyle = bossNameColors[sprType] || '#ff8866';
     ctx.font = '7px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`⚠ ROTJAW — Phase ${boss.phase} ⚠`, GAME_W / 2, by - 3);
+    ctx.fillText(`⚠ ${bossCreature.name.toUpperCase()} — Phase ${boss.phase} ⚠`, GAME_W / 2, by - 3);
 
     // HP text
     ctx.fillStyle = '#ffccaa';
@@ -3755,7 +3827,7 @@ export class Game {
       const sy = c.pos.y - cam.y;
       if (sx < -60 || sx > GAME_W + 60) continue;
 
-      const deathProgress = 1 - Math.max(0, c.deathTimer / (c.spriteType === 'rotjaw' ? 5 : c.spriteType === 'shark' ? 3 : c.spriteType === 'crab' ? 2.5 : c.spriteType === 'eel' ? 2 : 1.5));
+      const deathProgress = 1 - Math.max(0, c.deathTimer / (c.spriteType === 'rotjaw' ? 5 : c.spriteType === 'tangle' ? 5 : c.spriteType === 'subject_zero' ? 5 : c.spriteType === 'shark' ? 3 : c.spriteType === 'crab' ? 2.5 : c.spriteType === 'eel' ? 2 : 1.5));
 
       ctx.save();
 
@@ -3768,6 +3840,32 @@ export class Game {
           ctx.rotate(rollAngle);
           ctx.globalAlpha = 1 - deathProgress;
           if (c.facing < 0) ctx.scale(-1, 1);
+          this.drawCreatureSprite(ctx, c);
+          break;
+        }
+        case 'tangle': {
+          // Tentacles fly apart, body implodes then explodes with ink
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          const implode = deathProgress < 0.4 ? 1 - deathProgress * 0.5 : 0.8 + (deathProgress - 0.4) * 0.5;
+          ctx.scale(implode, implode);
+          ctx.globalAlpha = Math.max(0, 1 - deathProgress * 1.2);
+          ctx.rotate(deathProgress * 0.5);
+          this.drawCreatureSprite(ctx, c);
+          // Ink eruption overlay
+          if (deathProgress > 0.3) {
+            const inkAlpha = Math.min(0.6, (deathProgress - 0.3) * 1.5);
+            ctx.fillStyle = `rgba(20, 10, 30, ${inkAlpha})`;
+            ctx.fillRect(-c.width, -c.height, c.width * 2, c.height * 2);
+          }
+          break;
+        }
+        case 'subject_zero': {
+          // Glitch dissolve — flickers between visible and invisible
+          ctx.translate(sx + c.width / 2, sy + c.height / 2);
+          const glitchVisible = Math.sin(deathProgress * 80) > -0.3;
+          ctx.globalAlpha = glitchVisible ? Math.max(0, 1 - deathProgress) : 0;
+          const glitchOffset = Math.sin(deathProgress * 50) * 5 * deathProgress;
+          ctx.translate(glitchOffset, 0);
           this.drawCreatureSprite(ctx, c);
           break;
         }
