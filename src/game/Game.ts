@@ -200,6 +200,8 @@ export class Game {
       animFrame: 0,
       animTimer: 0,
       corruptionPulse: 0,
+      poisonTimer: 0,
+      poisonDamage: 0,
     });
 
     return creatures;
