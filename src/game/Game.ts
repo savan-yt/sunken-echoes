@@ -411,6 +411,8 @@ export class Game {
     }
     if (p.hp <= 0) {
       this.state.gameOver = true;
+      this.deathActive = true;
+      this.deathSequence = 0;
       this.callbacks.onPlayerDeath();
     }
 
