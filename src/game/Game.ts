@@ -780,6 +780,25 @@ export class Game {
         c.animTimer = 0;
       }
 
+      // Poison DOT
+      if (c.poisonTimer > 0 && c.state !== 'dead') {
+        c.poisonTimer -= dt;
+        const tickInterval = 0.5;
+        if (Math.floor((c.poisonTimer + dt) / tickInterval) > Math.floor(c.poisonTimer / tickInterval)) {
+          c.hp -= c.poisonDamage;
+          this.spawnDamageNumber(c.pos.x + c.width / 2, c.pos.y, c.poisonDamage, '#44ff44');
+          // Poison drip particles
+          this.state.particles.push({
+            pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+            vel: { x: (Math.random() - 0.5) * 20, y: -15 - Math.random() * 10 },
+            lifetime: 0.6, maxLifetime: 0.6, size: 2,
+            color: '#44ff44', type: 'poison',
+          });
+          if (c.hp <= 0) this.killCreature(c);
+        }
+        if (c.poisonTimer <= 0) { c.poisonTimer = 0; c.poisonDamage = 0; }
+      }
+
       if (c.state === 'dead') {
         c.deathTimer -= dt;
         if (c.deathTimer <= 0) {
