@@ -2120,6 +2120,18 @@ export class Game {
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+
+    // Dust motes floating in the light cone
+    if (zone >= 2 && Math.random() < 0.15) {
+      const moteD = 20 + Math.random() * 70;
+      const moteSpread = (Math.random() - 0.5) * 20;
+      this.state.particles.push({
+        pos: { x: p.pos.x + p.width / 2 + dir * moteD, y: p.pos.y - 6 + moteSpread },
+        vel: { x: (Math.random() - 0.5) * 3, y: (Math.random() - 0.5) * 2 },
+        lifetime: 1.5, maxLifetime: 1.5, size: 0.5 + Math.random() * 0.5,
+        color: `rgba(255, 255, 200, ${0.15 + Math.random() * 0.1})`, type: 'glow',
+      });
+    }
   }
 
   renderProjectiles(ctx: CanvasRenderingContext2D, cam: Vec2) {
