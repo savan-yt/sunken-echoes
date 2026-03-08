@@ -1465,6 +1465,7 @@ export class Game {
     this.renderDroppedItems(ctx, cam);
     this.renderMemoryFragments(ctx, cam);
     this.renderCreatures(ctx, cam);
+    this.renderCreatureDeathAnims(ctx, cam);
     this.renderBossHPBar(ctx);
     this.renderPlayer(ctx, cam);
     this.renderProjectiles(ctx, cam);
@@ -1480,6 +1481,16 @@ export class Game {
     this.renderPressureEffect(ctx);
 
     ctx.filter = 'none';
+
+    // Boss intro cinematic overlay
+    if (this.bossIntroActive) {
+      this.renderBossIntro(ctx, cam);
+    }
+
+    // Zone transition overlay
+    if (this.zoneTransitionTimer > 0) {
+      this.renderZoneTransition(ctx);
+    }
 
     // Death sequence overlay
     if (this.deathActive) {
