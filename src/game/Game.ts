@@ -1,6 +1,6 @@
 import {
   GameState, Player, Creature, Projectile, DroppedItem, AirBubble, Particle,
-  Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment,
+  Vec2, GameCallbacks, RARITY_COLORS, ItemDef, BossState, MemoryFragment, ZONE_NAMES,
 } from './types';
 import { ITEMS, CREATURE_TEMPLATES, BOSS_TEMPLATES } from './data';
 import { RECIPES, canCraft } from './crafting';
