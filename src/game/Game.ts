@@ -46,6 +46,10 @@ export class Game {
   zoneTransitionName = '';
   zoneTransitionDepth = 0;
   prevZone = 0;
+  // Water distortion
+  distortionCanvas: HTMLCanvasElement | null = null;
+  distortionCtx: CanvasRenderingContext2D | null = null;
+  ripples: { x: number; y: number; radius: number; maxRadius: number; strength: number; time: number }[] = [];
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
