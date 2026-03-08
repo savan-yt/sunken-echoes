@@ -466,6 +466,12 @@ export class Game {
             c.hp -= proj.damage;
             c.state = 'chase';
             this.spawnDamageParticles(c.pos.x + c.width / 2, c.pos.y + c.height / 2, proj.type === 'harpoon_crit');
+            this.spawnDamageNumber(c.pos.x + c.width / 2, c.pos.y, proj.damage, proj.type === 'harpoon_crit' ? '#ffdd44' : '#ffffff');
+            // Venomous Harpoon poison
+            if (this.hasEquippedGear('venomous_harpoon')) {
+              c.poisonTimer = 4;
+              c.poisonDamage = 3;
+            }
             if (c.hp <= 0) this.killCreature(c);
             return false;
           }
