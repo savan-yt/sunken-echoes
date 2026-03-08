@@ -653,11 +653,13 @@ export class Game {
       if (dist < 40 && p.invincible <= 0) {
         const chargeDmg = Math.floor(bossCreature.damage * 1.5);
         const defense = this.getStatBonus('defense');
-        p.hp -= Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
+        const finalChargeDmg = Math.max(1, Math.floor((chargeDmg - defense) * (1 - this.getGearDamageReduction())));
+        p.hp -= finalChargeDmg;
         p.invincible = 0.8;
         p.vel.x += boss.chargeDir.x * 150;
         p.vel.y += boss.chargeDir.y * 80;
         this.spawnDamageParticles(p.pos.x, p.pos.y, false);
+        this.spawnDamageNumber(p.pos.x + p.width / 2, p.pos.y, finalChargeDmg, '#ff4444');
       }
 
       if (boss.chargeTimer <= 0) {
