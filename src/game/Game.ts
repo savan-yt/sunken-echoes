@@ -1146,12 +1146,19 @@ export class Game {
 
   render() {
     const ctx = this.ctx;
-    const cam = this.state.camera;
+    const shake = this.getScreenShakeOffset();
+    const cam = { x: this.state.camera.x + shake.x, y: this.state.camera.y + shake.y };
     ctx.imageSmoothingEnabled = false;
+
+    // Death sequence desaturation
+    if (this.deathActive && this.deathSequence > 1.5) {
+      ctx.filter = `grayscale(${Math.min(1, (this.deathSequence - 1.5) * 0.5) * 100}%)`;
+    }
 
     this.renderBackground(ctx, cam);
     this.renderParallaxLayers(ctx, cam);
     this.renderTerrain(ctx, cam);
+    this.renderCorruptionTendrils(ctx, cam);
     this.renderKelp(ctx, cam);
     this.renderRocks(ctx, cam);
     this.renderAirBubbles(ctx, cam);
@@ -1164,9 +1171,20 @@ export class Game {
     this.renderParticles(ctx, cam);
     this.renderHelmetLight(ctx, cam);
     this.renderLightRays(ctx, cam);
+    this.renderDarknessOverlay(ctx, cam);
     this.renderWaterDistortion(ctx);
     this.renderVignette(ctx);
+    this.renderDamageVignette(ctx);
+    this.renderHelmetCracks(ctx);
     this.renderZoneOverlay(ctx);
+    this.renderPressureEffect(ctx);
+
+    ctx.filter = 'none';
+
+    // Death sequence overlay
+    if (this.deathActive) {
+      this.renderDeathOverlay(ctx);
+    }
   }
 
   renderBackground(ctx: CanvasRenderingContext2D, cam: Vec2) {
