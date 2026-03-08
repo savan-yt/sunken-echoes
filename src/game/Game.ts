@@ -311,6 +311,17 @@ export class Game {
     }
   }
 
+  getEquippedWeaponDamage(): number {
+    const slot = this.state.player.quickslots[this.state.player.activeQuickslot];
+    if (!slot || slot.item.category !== 'weapon') return 0;
+    switch (slot.item.id) {
+      case 'reinforced_harpoon': return 8;   // +50% of base ~15
+      case 'venomous_harpoon': return 12;    // poison-tier damage
+      case 'abyssal_lance': return 20;       // devastating
+      default: return 0;
+    }
+  }
+
   updatePlayer(dt: number) {
     const p = this.state.player;
     let ax = 0, ay = 0;
@@ -393,7 +404,8 @@ export class Game {
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
     const dmgBonus = this.getStatBonus('damage');
-    const baseDmg = HARPOON_DAMAGE + dmgBonus + this.state.skills.levels.combat * 3;
+    const weaponBonus = this.getEquippedWeaponDamage();
+    const baseDmg = HARPOON_DAMAGE + dmgBonus + weaponBonus + this.state.skills.levels.combat * 3;
 
     // Critical hit
     const critChance = this.getStatBonus('critChance');
