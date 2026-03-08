@@ -390,7 +390,8 @@ export class Game {
     // Oxygen drain - deeper = faster
     const depthFactor = 1 + (p.pos.y / WORLD_H) * 3;
     const divingReduction = 1 - this.state.skills.levels.diving * 0.1;
-    p.oxygen -= OXYGEN_DRAIN * depthFactor * divingReduction * dt;
+    const gearO2Reduction = 1 - this.getGearOxygenReduction();
+    p.oxygen -= OXYGEN_DRAIN * depthFactor * divingReduction * gearO2Reduction * dt;
     if (p.oxygen <= 0) {
       p.oxygen = 0;
       p.hp -= 10 * dt;
