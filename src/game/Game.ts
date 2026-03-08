@@ -467,9 +467,10 @@ export class Game {
     const slot = this.state.player.quickslots[this.state.player.activeQuickslot];
     if (!slot || slot.item.category !== 'weapon') return 0;
     switch (slot.item.id) {
-      case 'reinforced_harpoon': return 8;   // +50% of base ~15
-      case 'venomous_harpoon': return 12;    // poison-tier damage
-      case 'abyssal_lance': return 20;       // devastating
+      case 'reinforced_harpoon': return 8;
+      case 'venomous_harpoon': return 12;
+      case 'abyssal_lance': return 20;
+      case 'tentacle_whip': return 14;       // strong + extended range
       default: return 0;
     }
   }
@@ -481,13 +482,58 @@ export class Game {
   getGearDamageReduction(): number {
     let reduction = 0;
     if (this.hasEquippedGear('bone_armor')) reduction += 0.15;
-    return reduction;
+    if (this.hasEquippedGear('tangle_shield')) reduction += 0.25;
+    return Math.min(reduction, 0.6); // cap at 60%
   }
 
   getGearOxygenReduction(): number {
     let reduction = 0;
     if (this.hasEquippedGear('pressure_suit')) reduction += 0.20;
     return reduction;
+  }
+
+  getDetectionMultiplier(): number {
+    let mult = 1;
+    if (this.hasEquippedGear('ink_cloak')) mult *= 0.7; // -30% detection
+    if (this.inkSmokeTimer > 0) mult *= 0.15;           // near-invisible during smoke
+    return mult;
+  }
+
+  getDamageBonusMultiplier(): number {
+    let mult = 1;
+    if (this.corruptedElixirTimer > 0) mult *= 1.5;
+    return mult;
+  }
+
+  getHarpoonLifetimeBonus(): number {
+    if (this.hasEquippedGear('tentacle_whip')) return 0.6; // +40% effective range via lifetime
+    return 0;
+  }
+
+  retaliateOnHit(attackerPos: Vec2) {
+    if (!this.hasEquippedGear('tangle_shield')) return;
+    // Spawn retaliation damage to nearby creatures
+    for (const c of this.state.creatures) {
+      if (c.state === 'dead') continue;
+      const dx = c.pos.x - attackerPos.x;
+      const dy = c.pos.y - attackerPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 60) {
+        const retDmg = 8;
+        c.hp -= retDmg;
+        this.spawnDamageNumber(c.pos.x + c.width / 2, c.pos.y, retDmg, '#aa66ff');
+        this.spawnDamageParticles(c.pos.x + c.width / 2, c.pos.y + c.height / 2, false);
+        // Purple retaliation particles
+        for (let i = 0; i < 3; i++) {
+          this.state.particles.push({
+            pos: { x: c.pos.x + c.width / 2, y: c.pos.y + c.height / 2 },
+            vel: { x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 60 },
+            lifetime: 0.4, maxLifetime: 0.4, size: 3, color: '#aa44ff', type: 'corruption',
+          });
+        }
+        if (c.hp <= 0) this.killCreature(c);
+      }
+    }
   }
 
   updatePlayer(dt: number) {
