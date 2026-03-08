@@ -319,6 +319,8 @@ export interface GameCallbacks {
   onPlayerDeath: () => void;
   onCreatureKill: (name: string) => void;
   onMemoryFragment: (title: string, text: string) => void;
+  onNPCDialogue?: (npcId: string, node: DialogueNode, lineIndex: number) => void;
+  onNPCDialogueEnd?: (npcId: string) => void;
 }
 
 export const RARITY_COLORS: Record<Rarity, string> = {
