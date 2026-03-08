@@ -172,8 +172,8 @@ export class Game {
       const zoneKeys = ZONE_CREATURES[zone] || [];
       if (zoneKeys.length === 0) continue;
 
-      const zoneMinY = zone * (WORLD_H / 5);
-      const zoneMaxY = (zone + 1) * (WORLD_H / 5);
+      const zoneMinX = zone * (WORLD_W / 5);
+      const zoneMaxX = (zone + 1) * (WORLD_W / 5);
       const count = zone <= 2 ? 10 : 6;
 
       for (let i = 0; i < count; i++) {
@@ -181,11 +181,9 @@ export class Game {
         const tmpl = CREATURE_TEMPLATES[key as keyof typeof CREATURE_TEMPLATES];
         if (!tmpl) continue;
 
-        const x = 100 + Math.random() * (WORLD_W - 200);
-        const minY = Math.max(zoneMinY + 30, 30);
-        const maxY = Math.min(zoneMaxY - 30, WORLD_H - 50);
+        const x = zoneMinX + 50 + Math.random() * (zoneMaxX - zoneMinX - 100);
         const tx = terrain[Math.floor(Math.min(x, terrain.length - 1))];
-        const y = Math.min(tx - 40, minY + Math.random() * (maxY - minY));
+        const y = tx - 40 - Math.random() * 200;
 
         creatures.push({
           id: `c_${id++}`,
@@ -215,18 +213,18 @@ export class Game {
       }
     }
 
-    // Spawn bosses at zone boundaries
-    const bossX = 1800;
-    const bossTx = terrain[Math.floor(bossX)];
+    // Spawn bosses at zone boundaries (end of each zone's X range)
+    const bossX = WORLD_W / 5 * 1 - 100; // end of zone 0
+    const bossTx = terrain[Math.floor(Math.min(bossX, terrain.length - 1))];
     creatures.push(this.createBossCreature('boss_rotjaw', BOSS_TEMPLATES.rotjaw, bossX, bossTx - 80));
 
-    const tangleX = 2600;
+    const tangleX = WORLD_W / 5 * 2 - 100; // end of zone 1
     const tangleTx = terrain[Math.floor(Math.min(tangleX, terrain.length - 1))];
-    creatures.push(this.createBossCreature('boss_tangle', BOSS_TEMPLATES.the_tangle, tangleX, Math.min(tangleTx - 100, WORLD_H * 0.45)));
+    creatures.push(this.createBossCreature('boss_tangle', BOSS_TEMPLATES.the_tangle, tangleX, tangleTx - 100));
 
-    const zeroX = 3200;
+    const zeroX = WORLD_W / 5 * 3 - 100; // end of zone 2
     const zeroTx = terrain[Math.floor(Math.min(zeroX, terrain.length - 1))];
-    creatures.push(this.createBossCreature('boss_subject_zero', BOSS_TEMPLATES.subject_zero, zeroX, Math.min(zeroTx - 80, WORLD_H * 0.7)));
+    creatures.push(this.createBossCreature('boss_subject_zero', BOSS_TEMPLATES.subject_zero, zeroX, zeroTx - 80));
 
     return creatures;
   }
@@ -363,7 +361,7 @@ export class Game {
     this.updateParticles(dt);
     this.updateCamera();
     this.spawnAmbientParticles(dt);
-    this.state.depthZone = Math.min(4, Math.floor(this.state.player.pos.y / (WORLD_H / 5)));
+    this.state.depthZone = Math.min(4, Math.floor(this.state.player.pos.x / (WORLD_W / 5)));
 
     // Zone transition detection
     if (this.state.depthZone !== oldZone) {
