@@ -1,4 +1,4 @@
-import { ItemDef, LootEntry } from './types';
+import { ItemDef, LootEntry, NPCDef } from './types';
 
 export const ITEMS: Record<string, ItemDef> = {
   rusty_harpoon: {
