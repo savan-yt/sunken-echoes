@@ -2054,7 +2054,7 @@ export class Game {
 
     ctx.restore();
 
-    // Swim bubbles trail
+    // Swim bubbles trail — enhanced
     if (isMoving) {
       if (Math.random() < 0.35) {
         this.state.particles.push({
@@ -2064,6 +2064,27 @@ export class Game {
           color: 'rgba(150, 220, 255, 0.4)', type: 'bubble',
         });
       }
+      // Speed lines when sprinting
+      if (Math.abs(p.vel.x) > 50 || Math.abs(p.vel.y) > 50) {
+        this.state.particles.push({
+          pos: { x: p.pos.x + p.width / 2, y: p.pos.y + p.height / 2 + (Math.random() - 0.5) * 10 },
+          vel: { x: -p.vel.x * 0.3, y: -p.vel.y * 0.3 },
+          lifetime: 0.15, maxLifetime: 0.15, size: 1,
+          color: 'rgba(150, 200, 255, 0.2)', type: 'glow',
+        });
+      }
+    }
+
+    // Constant helmet breathing bubbles (always)
+    if (Math.random() < 0.1) {
+      const bubSize = oxyPct < 0.2 ? 2 + Math.random() * 2 : 1 + Math.random();
+      const bubVelY = oxyPct < 0.2 ? -15 - Math.random() * 10 : -6 - Math.random() * 4;
+      this.state.particles.push({
+        pos: { x: p.pos.x + p.width / 2 + p.facing * 4, y: p.pos.y - 4 },
+        vel: { x: p.facing * 2 + (Math.random() - 0.5) * 4, y: bubVelY },
+        lifetime: 1.2, maxLifetime: 1.2, size: bubSize,
+        color: oxyPct < 0.2 ? 'rgba(200, 200, 255, 0.6)' : 'rgba(150, 220, 255, 0.35)', type: 'bubble',
+      });
     }
   }
 
