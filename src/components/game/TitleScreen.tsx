@@ -43,8 +43,14 @@ export default function TitleScreen({ onStart }: TitleScreenProps) {
       {/* Overlay gradient */}
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
 
-      {/* Animated particles overlay */}
-      <div className="absolute inset-0 overflow-hidden">
+      {/* Animated particles overlay with parallax */}
+      <div
+        className="absolute inset-0 overflow-hidden"
+        style={{
+          transform: `translate(${parallax.x * 1.5}%, ${parallax.y * 1.5}%)`,
+          transition: 'transform 0.08s ease-out',
+        }}
+      >
         {Array.from({ length: 15 }).map((_, i) => (
           <div
             key={i}
