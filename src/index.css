@@ -146,3 +146,18 @@
     transform: scaleX(1);
   }
 }
+
+@keyframes bg-sway {
+  0%, 100% {
+    transform: scale(1.08) translate(0%, 0%);
+  }
+  25% {
+    transform: scale(1.08) translate(-0.5%, -0.3%);
+  }
+  50% {
+    transform: scale(1.08) translate(0.3%, -0.5%);
+  }
+  75% {
+    transform: scale(1.08) translate(-0.3%, 0.3%);
+  }
+}

@@ -17,6 +17,7 @@ export default function TitleScreen({ onStart }: TitleScreenProps) {
         style={{
           backgroundImage: `url(${titleBg})`,
           filter: 'brightness(0.6) saturate(1.2)',
+          animation: 'bg-sway 20s ease-in-out infinite',
         }}
       />
 
