@@ -50,15 +50,15 @@ export default function TitleScreen({ onStart }: TitleScreenProps) {
       {/* Content */}
       {!showCoop && (
         <div className="relative z-10 flex flex-col items-center justify-center h-full px-4">
-          <div className="text-center mb-12">
-            <h1 className="font-pixel text-2xl md:text-4xl text-primary glow-cyan mb-3 tracking-wider">
+          <div className="text-center mb-12 animate-fade-in-up">
+            <h1 className="font-pixel text-2xl md:text-4xl text-primary glow-cyan mb-3 tracking-wider animate-title-glow">
               FORGOTTEN
             </h1>
-            <h1 className="font-pixel text-xl md:text-3xl text-foreground mb-6 tracking-widest">
+            <h1 className="font-pixel text-xl md:text-3xl text-foreground mb-6 tracking-widest animate-fade-in-up animation-delay-200">
               DEPTHS
             </h1>
-            <div className="w-32 h-px mx-auto bg-gradient-to-r from-transparent via-primary/50 to-transparent mb-4" />
-            <p className="font-pixel-body text-sm md:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
+            <div className="w-32 h-px mx-auto bg-gradient-to-r from-transparent via-primary/50 to-transparent mb-4 animate-expand-width" />
+            <p className="font-pixel-body text-sm md:text-base text-muted-foreground max-w-md mx-auto leading-relaxed animate-fade-in-up animation-delay-400">
               You awaken on the ocean floor. No memory. No name.<br />
               Only darkness, and the hum of the deep.
             </p>
@@ -70,6 +70,7 @@ export default function TitleScreen({ onStart }: TitleScreenProps) {
               className="w-full group font-pixel text-xs md:text-sm text-primary glow-cyan
                 px-8 py-3 pixel-border bg-secondary/30 hover:bg-primary/20
                 transition-all duration-300 hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]
+                hover:scale-105 animate-fade-in-up animation-delay-600
                 animate-pulse-glow"
             >
               SOLO DIVE
@@ -79,13 +80,14 @@ export default function TitleScreen({ onStart }: TitleScreenProps) {
               onClick={() => setShowCoop(true)}
               className="w-full group font-pixel text-xs md:text-sm text-accent
                 px-8 py-3 pixel-border bg-secondary/30 hover:bg-accent/20
-                transition-all duration-300 hover:shadow-[0_0_20px_hsl(var(--accent)/0.3)]"
+                transition-all duration-300 hover:shadow-[0_0_20px_hsl(var(--accent)/0.3)]
+                hover:scale-105 animate-fade-in-up animation-delay-800"
             >
               🤝 CO-OP
             </button>
           </div>
 
-          <div className="mt-12 text-center">
+          <div className="mt-12 text-center animate-fade-in-up animation-delay-1000">
             <p className="font-pixel text-[7px] md:text-[8px] text-muted-foreground/40 tracking-wider">
               WASD TO SWIM &nbsp;•&nbsp; CLICK TO SHOOT &nbsp;•&nbsp; I FOR INVENTORY
             </p>
