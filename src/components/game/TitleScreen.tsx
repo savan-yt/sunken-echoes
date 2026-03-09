@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import titleBg from '@/assets/title-bg.jpg';
 import CoopLobby from './CoopLobby';
 
@@ -8,16 +8,35 @@ interface TitleScreenProps {
 
 export default function TitleScreen({ onStart }: TitleScreenProps) {
   const [showCoop, setShowCoop] = useState(false);
+  const [parallax, setParallax] = useState({ x: 0, y: 0 });
+  const rafRef = useRef<number | null>(null);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      const { clientX, clientY, currentTarget } = e;
+      const { width, height } = currentTarget.getBoundingClientRect();
+      // Max shift: ±1.5%
+      const x = ((clientX / width) - 0.5) * -3;
+      const y = ((clientY / height) - 0.5) * -3;
+      setParallax({ x, y });
+    });
+  }, []);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-background">
-      {/* Background image */}
+    <div
+      className="relative w-full h-screen overflow-hidden bg-background"
+      onMouseMove={handleMouseMove}
+    >
+      {/* Background image with parallax */}
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
           backgroundImage: `url(${titleBg})`,
           filter: 'brightness(0.6) saturate(1.2)',
           animation: 'bg-sway 20s ease-in-out infinite',
+          transform: `scale(1.08) translate(${parallax.x}%, ${parallax.y}%)`,
+          transition: 'transform 0.12s ease-out',
         }}
       />
 
